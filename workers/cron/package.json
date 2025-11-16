@@ -1,0 +1,22 @@
+{
+	"name": "cron",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev --test-scheduled",
+		"start": "wrangler dev --test-scheduled",
+		"cf-typegen": "wrangler types"
+	},
+	"devDependencies": {
+		"@types/luxon": "catalog:",
+		"tsx": "catalog:",
+		"typescript": "^5.5.2",
+		"wrangler": "^4.48.0"
+	},
+	"dependencies": {
+		"@lib/puzzle": "workspace:*",
+		"luxon": "catalog:",
+		"zod": "catalog:"
+	}
+}

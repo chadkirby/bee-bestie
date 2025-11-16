@@ -1,0 +1,26 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "cron",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-11-13",
+	"observability": {
+		"enabled": true
+	},
+	"d1_databases": [
+		{
+			"binding": "bee_puzzles",
+			"database_name": "bee-puzzles",
+			"database_id": "177a65ec-0efd-42b8-9ae8-ba480d275c18",
+			"remote": true
+		}
+	],
+	"triggers": {
+		"crons": [
+			"1-5 17 * * *"
+		]
+	}
+}

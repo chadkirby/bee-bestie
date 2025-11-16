@@ -1,0 +1,17 @@
+{
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "compatibility_date": "2025-11-15",
+  "workers_dev": true,
+  "upload_source_maps": true,
+  "observability": {
+    "enabled": true
+  },
+  "r2_buckets": [
+    {
+      "binding": "BEE_BUCKET",
+      "bucket_name": "bee-data"
+    }
+  ]
+}

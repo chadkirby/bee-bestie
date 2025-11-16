@@ -1,0 +1,450 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+/* Base layout */
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  margin: 0;
+  color: #111;
+}
+
+h1 {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+/* URL Input Form */
+.url-input {
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #f9f9f9;
+}
+
+.url-input label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.url-input input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+
+.url-input input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+.url-input button {
+  background: #6366f1;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.url-input button:hover:not(:disabled) {
+  background: #5558e3;
+}
+
+.url-input button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.app {
+  min-height: 100vh;
+  height: 100vh;
+}
+
+/* Ensure react-resizable-panels takes full height */
+.app > div {
+  height: 100%;
+}
+
+.left {
+  padding: 20px;
+  box-sizing: border-box;
+  overflow: auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Add a flex container to ensure content fills available space */
+.left-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.right {
+  background: #f7f7f7;
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+  height: 100%;
+}
+
+/* Custom resize handle styling for react-resizable-panels */
+.resize-handle-custom {
+  background: linear-gradient(to right,
+    transparent 0px,
+    transparent 6px,
+    #6366f1 6px,
+    #6366f1 8px,
+    #6366f1 10px,
+    transparent 10px,
+    transparent 16px
+  );
+  opacity: 0.3;
+  transition: opacity 0.2s;
+  position: relative;
+}
+
+.resize-handle-custom:hover {
+  opacity: 0.7;
+}
+
+.resize-handle-custom:active {
+  opacity: 1;
+}
+
+/* Ensure the resize handle has a minimum width for easier grabbing */
+.resize-handle-custom {
+  min-width: 8px;
+  cursor: ew-resize;
+}
+
+.right-inner {
+  padding: 16px;
+  width: 100%;
+}
+
+/* Recipe Display Styles */
+.recipe-results {
+  margin-top: 20px;
+}
+
+.recipe-card {
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.recipe-metadata {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f0f4ff;
+  border-radius: 6px;
+}
+
+.recipe-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.recipe-author, .recipe-source {
+  font-size: 0.9em;
+  margin-top: 4px;
+}
+
+.recipe-source a {
+  color: #6366f1;
+  text-decoration: none;
+}
+
+.recipe-source a:hover {
+  text-decoration: underline;
+}
+
+.recipe-card h3 {
+  margin-top: 0;
+  color: #333;
+  border-bottom: 2px solid #6366f1;
+  padding-bottom: 8px;
+}
+
+.recipe-description {
+  color: #666;
+  font-style: italic;
+  margin-bottom: 16px;
+}
+
+.recipe-introduction {
+  background: #f0f4ff;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.recipe-section {
+  margin-bottom: 20px;
+}
+
+.recipe-section h4 {
+  margin-bottom: 12px;
+  color: #444;
+  font-weight: 600;
+}
+
+.ingredients-list {
+  list-style-type: none;
+  padding: 0;
+}
+
+.ingredients-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+  position: relative;
+  padding-left: 20px;
+}
+
+.ingredients-list li:before {
+  content: "•";
+  color: #6366f1;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
+.instructions-list {
+  padding-left: 20px;
+}
+
+.instructions-list li {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.instructions-list li:last-child {
+  margin-bottom: 0;
+}
+
+.notes-list {
+  list-style-type: none;
+  padding: 0;
+}
+
+.notes-list li {
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  background: #fff3cd;
+  border-left: 4px solid #ffc107;
+  border-radius: 0 4px 4px 0;
+}
+
+.notes-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* Loading spinner */
+.loader {
+  width: 48px;
+  height: 48px;
+  border: 5px solid #6366f1;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  box-sizing: border-box;
+  animation: rotation 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes rotation {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Sections (visibility handled by React) */
+/* details is conditionally rendered by React */
+
+.loading {
+  background-color: white;
+}
+
+.loading .loading-text {
+  margin: 12px 0;
+  color: #555;
+  font-size: 14px;
+}
+
+.loading .logline-category {
+  color: #555;
+}
+
+/* error is conditionally rendered by React */
+
+.error h2 {
+  color: #e74c3c;
+  margin: 0 0 8px;
+}
+
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+  min-height: 220px;
+}
+
+.screenshot {
+  width: 100%;
+  height: auto;
+  border: 1px solid #ddd;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background: white;
+}
+
+/* error stack is conditionally rendered by React */
+/* Keep default pre styling */
+
+/* Small screens */
+@media (max-width: 900px) {
+  .app {
+    flex-direction: column;
+  }
+
+  .right {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.147 0.004 49.25);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.147 0.004 49.25);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.147 0.004 49.25);
+  --primary: oklch(0.216 0.006 56.043);
+  --primary-foreground: oklch(0.985 0.001 106.423);
+  --secondary: oklch(0.97 0.001 106.424);
+  --secondary-foreground: oklch(0.216 0.006 56.043);
+  --muted: oklch(0.97 0.001 106.424);
+  --muted-foreground: oklch(0.553 0.013 58.071);
+  --accent: oklch(0.97 0.001 106.424);
+  --accent-foreground: oklch(0.216 0.006 56.043);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.923 0.003 48.717);
+  --input: oklch(0.923 0.003 48.717);
+  --ring: oklch(0.709 0.01 56.259);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0.001 106.423);
+  --sidebar-foreground: oklch(0.147 0.004 49.25);
+  --sidebar-primary: oklch(0.216 0.006 56.043);
+  --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
+  --sidebar-accent: oklch(0.97 0.001 106.424);
+  --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
+  --sidebar-border: oklch(0.923 0.003 48.717);
+  --sidebar-ring: oklch(0.709 0.01 56.259);
+}
+
+.dark {
+  --background: oklch(0.147 0.004 49.25);
+  --foreground: oklch(0.985 0.001 106.423);
+  --card: oklch(0.216 0.006 56.043);
+  --card-foreground: oklch(0.985 0.001 106.423);
+  --popover: oklch(0.216 0.006 56.043);
+  --popover-foreground: oklch(0.985 0.001 106.423);
+  --primary: oklch(0.923 0.003 48.717);
+  --primary-foreground: oklch(0.216 0.006 56.043);
+  --secondary: oklch(0.268 0.007 34.298);
+  --secondary-foreground: oklch(0.985 0.001 106.423);
+  --muted: oklch(0.268 0.007 34.298);
+  --muted-foreground: oklch(0.709 0.01 56.259);
+  --accent: oklch(0.268 0.007 34.298);
+  --accent-foreground: oklch(0.985 0.001 106.423);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.553 0.013 58.071);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.216 0.006 56.043);
+  --sidebar-foreground: oklch(0.985 0.001 106.423);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
+  --sidebar-accent: oklch(0.268 0.007 34.298);
+  --sidebar-accent-foreground: oklch(0.985 0.001 106.423);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.553 0.013 58.071);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

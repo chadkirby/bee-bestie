@@ -1,0 +1,40 @@
+{
+  "name": "@lib/word-freqs",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./schemas": {
+      "import": "./dist/word-freq-schemas.js",
+      "types": "./dist/word-freq-schemas.d.ts"
+    }
+  },
+  "scripts": {
+    "test": "vitest",
+    "typecheck": "tsc --skipLibCheck --noEmit",
+    "watch": "tsc -b -w",
+    "build": "tsc -b"
+  },
+  "keywords": [],
+  "author": "Chad Kirby",
+  "dependencies": {
+    "msgpackr": "catalog:",
+    "simple-statistics": "catalog:",
+    "zod": "catalog:"
+  },
+  "packageManager": "pnpm@10.22.0",
+  "volta": {
+    "node": "22.21.1",
+    "pnpm": "10.22.0"
+  },
+  "devDependencies": {
+    "tsx": "catalog:",
+    "vitest": "catalog:"
+  }
+}

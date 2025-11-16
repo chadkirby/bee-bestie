@@ -1,33 +1,41 @@
 {
-  "name": "stagehand-example",
+  "name": "bee-bestie",
   "version": "1.0.0",
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "None",
   "description": "",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "npm run build && vite preview",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "watch": "pnpm --filter '@lib/*' watch"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.13.4",
+    "@cloudflare/workers-types": "^4.20251111.0",
+    "@types/luxon": "^3.7.1",
+    "@types/node": "catalog:",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.3",
-    "playwright-core": "^1.55.0",
+    "prettier": "^3.6.2",
     "typescript": "^5.8.3",
     "vite": "^7.1.7",
-    "wrangler": "^4.38.0"
+    "vitest": "catalog:"
   },
   "dependencies": {
-    "@browserbasehq/stagehand": "^2.5.0",
-    "@cloudflare/playwright": "^1.0.0",
+    "luxon": "^3.7.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "zod": "^3.25.76",
-    "zod-to-json-schema": "^3.24.6"
+    "react-resizable-panels": "^3.0.6",
+    "zod": "^4.1.12"
+  },
+  "packageManager": "pnpm@10.22.0",
+  "volta": {
+    "node": "22.21.1",
+    "pnpm": "10.22.0"
   }
 }

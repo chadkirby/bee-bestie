@@ -1,0 +1,26 @@
+{
+  "name": "@lib/puzzle",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "watch": "tsc -b -w",
+    "build": "tsc -b",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Chad Kirby",
+  "packageManager": "pnpm@10.22.0",
+  "volta": {
+    "node": "22.21.1",
+    "pnpm": "10.22.0"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "tsx": "catalog:"
+  }
+}
