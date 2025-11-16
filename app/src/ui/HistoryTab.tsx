@@ -3,7 +3,7 @@ import { type OnePuzzle } from '@lib/puzzle';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LetterGrid } from '@/components/LetterGrid';
 import { ExposureControls } from '@/components/ExposureControls';
-import { WordExplorer, type WordStatsRecord, type SortKey } from '@/components/WordExplorer';
+import { WordExplorer, type WordStatsRecord, type BasicWordRecord, type WordRecord, type SortKey } from '@/components/WordExplorer';
 import type { ExposureConfig } from './App';
 
 interface HistoryTabProps {
@@ -19,6 +19,7 @@ interface HistoryTabProps {
   onToggleSortDirection: () => void;
 }
 
+
 export function HistoryTab({
   puzzle,
   lettersToExpose,
@@ -31,6 +32,20 @@ export function HistoryTab({
   onChangeSortBy,
   onToggleSortDirection,
 }: HistoryTabProps) {
+  // Create progressive word list: basic puzzle answers enriched with stats when available
+  const progressiveWordList: WordRecord[] = puzzle.answers.map(answer => {
+    // Find matching word stats if available
+    const wordStat = wordStats?.find(stat => stat.word.toLowerCase() === answer.toLowerCase());
+
+    if (wordStat) {
+      return wordStat; // Full stats available
+    } else {
+      return { word: answer, hasStats: false }; // Basic word only
+    }
+  });
+
+  const hasAnyStats = progressiveWordList.some(record => 'frequency' in record);
+
   return (
     <Card>
       <CardHeader>
@@ -57,34 +72,18 @@ export function HistoryTab({
         </div>
       </CardHeader>
       <CardContent>
-        {loadingWordStats && (
-          <div className="animate-pulse">
-            <div className="h-4 w-32 rounded bg-muted mb-4" />
-            <div className="space-y-2">
-              <div className="h-6 rounded bg-muted" />
-              <div className="h-6 rounded bg-muted" />
-              <div className="h-6 rounded bg-muted" />
-            </div>
-          </div>
-        )}
-
-        {wordStatsError && (
-          <div className="text-destructive">
-            <p>Error loading word statistics: {wordStatsError}</p>
-          </div>
-        )}
-
-        {!loadingWordStats && !wordStatsError && wordStats && (
-          <WordExplorer
-            stats={wordStats}
-            lettersToExpose={lettersToExpose}
-            puzzleDateIso={puzzle.printDate}
-            sortBy={sortBy}
-            sortDirection={sortDirection}
-            onChangeSortBy={onChangeSortBy}
-            onToggleSortDirection={onToggleSortDirection}
-          />
-        )}
+        <WordExplorer
+          stats={progressiveWordList}
+          lettersToExpose={lettersToExpose}
+          puzzleDateIso={puzzle.printDate}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onChangeSortBy={onChangeSortBy}
+          onToggleSortDirection={onToggleSortDirection}
+          loadingWordStats={loadingWordStats}
+          wordStatsError={wordStatsError}
+          hasAnyStats={hasAnyStats}
+        />
       </CardContent>
     </Card>
   );

@@ -21,11 +21,20 @@ export type WordStatsRecord = {
   sbHistory: string[];
 };
 
+// Basic word record for progressive loading (no stats yet)
+export type BasicWordRecord = {
+  word: string;
+  hasStats: false;
+};
+
+// Union type for progressive word records
+export type WordRecord = WordStatsRecord | BasicWordRecord;
+
 // Sorting by frequency (hard count), commonality, SB history, or word (alpha).
 export type SortKey = 'frequency' | 'commonality' | 'sbCount' | 'lastSeen' | 'word';
 
 interface WordExplorerProps {
-  stats: WordStatsRecord[];
+  stats: WordRecord[];
   lettersToExpose: ExposureConfig;
   /** ISO date string for the current puzzle (YYYY-MM-DD). */
   puzzleDateIso: string;
@@ -33,6 +42,9 @@ interface WordExplorerProps {
   sortDirection: 'asc' | 'desc';
   onChangeSortBy: (sortBy: SortKey) => void;
   onToggleSortDirection: () => void;
+  loadingWordStats?: boolean;
+  wordStatsError?: string | null;
+  hasAnyStats?: boolean;
 }
 
 function formatLastSeen(puzzleDateIso: string, dates: string[]): string {
@@ -74,6 +86,9 @@ export function WordExplorer({
   sortDirection,
   onChangeSortBy,
   onToggleSortDirection,
+  loadingWordStats = false,
+  wordStatsError = null,
+  hasAnyStats = false,
 }: WordExplorerProps) {
 
   const sortedStats = useMemo(() => {
@@ -85,7 +100,16 @@ export function WordExplorer({
         return a.word.localeCompare(b.word) * dir;
       }
 
+      // For sorting that requires stats, put words without stats at the end
+      const aHasStats = 'frequency' in a;
+      const bHasStats = 'frequency' in b;
+
       if (sortBy === 'lastSeen') {
+        // Put words without stats at the end
+        if (!aHasStats && !bHasStats) return a.word.localeCompare(b.word);
+        if (!aHasStats) return 1;
+        if (!bHasStats) return -1;
+
         const aDates = a.sbHistory;
         const bDates = b.sbHistory;
         const aLast = aDates.length ? aDates[aDates.length - 1] : '';
@@ -95,6 +119,11 @@ export function WordExplorer({
       }
 
       if (sortBy === 'sbCount') {
+        // Put words without stats at the end
+        if (!aHasStats && !bHasStats) return a.word.localeCompare(b.word);
+        if (!aHasStats) return 1;
+        if (!bHasStats) return -1;
+
         const aCount = a.sbHistory.length;
         const bCount = b.sbHistory.length;
         if (aCount === bCount) return 0;
@@ -103,6 +132,11 @@ export function WordExplorer({
 
       // numeric fields: frequency, commonality
       if (sortBy === 'frequency' || sortBy === 'commonality') {
+        // Put words without stats at the end
+        if (!aHasStats && !bHasStats) return a.word.localeCompare(b.word);
+        if (!aHasStats) return 1;
+        if (!bHasStats) return -1;
+
         return (a[sortBy] - b[sortBy]) * dir;
       }
 
@@ -149,9 +183,14 @@ export function WordExplorer({
           >
             <div className="flex items-center gap-2">
               <AnswerItem answer={stat.word} lettersToExpose={lettersToExpose} />
-              {!stat.found && (
+              {('frequency' in stat) && !stat.found && (
                 <Badge variant="destructive" className="text-[0.65rem]">
                   Not in frequency corpus
+                </Badge>
+              )}
+              {('frequency' in stat) === false && loadingWordStats && (
+                <Badge variant="secondary" className="text-[0.65rem] animate-pulse">
+                  Loading...
                 </Badge>
               )}
             </div>
@@ -161,7 +200,7 @@ export function WordExplorer({
                   Frequency
                 </div>
                 <div className="text-foreground">
-                  {stat.frequency.toLocaleString()}
+                  {('frequency' in stat) ? stat.frequency.toLocaleString() : '--'}
                 </div>
               </div>
               <div>
@@ -169,7 +208,7 @@ export function WordExplorer({
                   Commonality
                 </div>
                 <div className="text-foreground">
-                  {stat.commonality.toFixed(3)}
+                  {('commonality' in stat) ? stat.commonality.toFixed(3) : '--'}
                 </div>
               </div>
               <div>
@@ -177,7 +216,7 @@ export function WordExplorer({
                   SB Count
                 </div>
                 <div className="text-foreground">
-                  {stat.sbHistory.length}
+                  {('sbHistory' in stat) ? stat.sbHistory.length : '--'}
                 </div>
               </div>
               <div>
@@ -185,7 +224,7 @@ export function WordExplorer({
                   Last seen
                 </div>
                 <div className="text-foreground">
-                  {formatLastSeen(puzzleDateIso, stat.sbHistory)}
+                  {('sbHistory' in stat) ? formatLastSeen(puzzleDateIso, stat.sbHistory) : '--'}
                 </div>
               </div>
             </div>

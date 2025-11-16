@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { DateTime } from 'luxon';
 import { Routes, Route, Navigate, NavLink, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { z } from 'zod/mini';
@@ -7,22 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateNavigation } from '@/components/DateNavigation';
 import { WordExplorer, type WordStatsRecord, type SortKey } from '@/components/WordExplorer';
 import { HistoryTab } from './HistoryTab';
+import { TabDataService } from '@/services/tabDataService';
 
 // Schema for puzzle-only response
 const PuzzleResponseSchema = z.object({
   puzzle: z.any(), // OnePuzzle will be validated by HistoryTab
-});
-
-// Schema for word-stats response
-const WordStatsResponseSchema = z.object({
-  wordStats: z.array(z.object({
-    word: z.string(),
-    found: z.boolean(),
-    frequency: z.number(),
-    commonality: z.number(),
-    probability: z.number(),
-    sbHistory: z.array(z.string()),
-  })),
 });
 
 export type ExposureConfig = {
@@ -56,6 +45,9 @@ function PuzzlePage() {
   const [error, setError] = useState<string | null>(null);
   const [wordStatsError, setWordStatsError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState<DateTime | null>(null);
+
+  // AbortController for cancelling pending word-stats requests
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Derive sort + exposure settings from URL search params so views are shareable
   const sortBy = (searchParams.get('sortBy') as SortKey) ?? 'frequency';
@@ -93,6 +85,7 @@ function PuzzlePage() {
     setLoading(true);
     setError(null);
     setPuzzleData(null);
+    setWordStats(null); // Clear previous word stats
     setWordStatsError(null); // Clear word stats error on new puzzle
 
     try {
@@ -101,7 +94,6 @@ function PuzzlePage() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const puzzleResponse = PuzzleResponseSchema.parse(await response.json());
-      console.log('Puzzle data for', isoDate, puzzleResponse);
       setPuzzleData(puzzleResponse.puzzle);
     } catch (err) {
       setError(err instanceof Error ? err.stack! : 'An error occurred');
@@ -115,30 +107,49 @@ function PuzzlePage() {
     // Only fetch word stats for history tab
     if (tab !== 'history') return;
 
+    // Cancel any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    // Store the request date locally
+    const requestDate = isoDate;
+
     setLoadingWordStats(true);
     setWordStatsError(null);
 
     try {
-      const response = await fetch(`/puzzle/${isoDate}/word-stats`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const wordStatsResponse = await TabDataService.fetchWordStats(requestDate, abortController.signal);
+
+      // Check if request was aborted during fetch
+      if (abortController.signal.aborted) {
+        return;
       }
-      const wordStatsResponse = WordStatsResponseSchema.parse(await response.json());
-      console.log('Word stats for', isoDate, wordStatsResponse);
-      setWordStats(wordStatsResponse.wordStats);
+
+      // Use the ref-based date check instead of state
+      if (abortControllerRef.current?.signal && !abortControllerRef.current.signal.aborted) {
+        setWordStats(wordStatsResponse.wordStats);
+      }
     } catch (err) {
-      setWordStatsError(err instanceof Error ? err.stack! : 'An error occurred');
+      // Don't show error for aborted requests
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
+
+      setWordStatsError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
-      setLoadingWordStats(false);
+      // Always update loading state on completion (unless aborted)
+      if (!abortController.signal.aborted) {
+        setLoadingWordStats(false);
+      }
     }
   };
 
-  // Legacy fetch function for backward compatibility
-  const fetchByDate = async (isoDate: string) => {
-    await fetchPuzzle(isoDate);
-    await fetchWordStats(isoDate);
-  };
-
+  
   // When the route date changes, update state and fetch puzzle data immediately
   useEffect(() => {
     if (!date) return;
@@ -151,13 +162,21 @@ function PuzzlePage() {
     fetchPuzzle(dateTime.toISODate()!);
   }, [date]);
 
-  // When tab changes to history or date changes, fetch word stats
+  // When puzzle data is loaded and we're on history tab, fetch word stats
   useEffect(() => {
-    if (!date || !currentDate) return;
-    if (tab === 'history') {
-      fetchWordStats(currentDate.toISODate()!);
+    if (puzzleData && tab === 'history') {
+      fetchWordStats(puzzleData.printDate);
     }
-  }, [date, tab, currentDate]);
+  }, [puzzleData, tab]);
+
+  // Cleanup: cancel any pending requests when component unmounts
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const handleDateChange = (nextDate: DateTime) => {
     const nextIso = nextDate.toISODate();
