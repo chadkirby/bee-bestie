@@ -37,6 +37,7 @@
     "clsx": "catalog:",
     "lucide-react": "catalog:",
     "luxon": "catalog:",
+    "quick-lru": "catalog:",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-resizable-panels": "^3.0.6",

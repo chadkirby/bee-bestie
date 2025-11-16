@@ -45,6 +45,9 @@ catalogs:
     prettier:
       specifier: ^3.6.2
       version: 3.6.2
+    quick-lru:
+      specifier: ^7.3.0
+      version: 7.3.0
     react-router-dom:
       specifier: ^7.9.6
       version: 7.9.6
@@ -165,6 +168,9 @@ importers:
       luxon:
         specifier: 'catalog:'
         version: 3.7.2
+      quick-lru:
+        specifier: 'catalog:'
+        version: 7.3.0
       react:
         specifier: ^19.0.0
         version: 19.2.0
@@ -1602,6 +1608,10 @@ packages:
     resolution: {integrity: sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==}
     engines: {node: '>=14'}
     hasBin: true
+
+  quick-lru@7.3.0:
+    resolution: {integrity: sha512-k9lSsjl36EJdK7I06v7APZCbyGT2vMTsYSRX1Q2nbYmnkBqgUhRkAuzH08Ciotteu/PLJmIF2+tti7o3C/ts2g==}
+    engines: {node: '>=18'}
 
   react-dom@19.2.0:
     resolution: {integrity: sha512-UlbRu4cAiGaIewkPyiRGJk0imDN2T3JjieT6spoL2UeSf5od4n5LB/mQ4ejmxhCFT1tYe8IvaFulzynWovsEFQ==}
@@ -3044,6 +3054,8 @@ snapshots:
       source-map-js: 1.2.1
 
   prettier@3.6.2: {}
+
+  quick-lru@7.3.0: {}
 
   react-dom@19.2.0(react@19.2.0):
     dependencies:

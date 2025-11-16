@@ -1,12 +1,29 @@
 import { useEffect, useState } from 'react';
 import { DateTime } from 'luxon';
 import { Routes, Route, Navigate, NavLink, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { z } from 'zod/mini';
 import { type OnePuzzle } from '@lib/puzzle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateNavigation } from '@/components/DateNavigation';
 import { WordExplorer, type WordStatsRecord, type SortKey } from '@/components/WordExplorer';
-import { DateResponseSchema } from '@/lib/load-data.ts';
 import { HistoryTab } from './HistoryTab';
+
+// Schema for puzzle-only response
+const PuzzleResponseSchema = z.object({
+  puzzle: z.any(), // OnePuzzle will be validated by HistoryTab
+});
+
+// Schema for word-stats response
+const WordStatsResponseSchema = z.object({
+  wordStats: z.array(z.object({
+    word: z.string(),
+    found: z.boolean(),
+    frequency: z.number(),
+    commonality: z.number(),
+    probability: z.number(),
+    sbHistory: z.array(z.string()),
+  })),
+});
 
 export type ExposureConfig = {
   startingLetters: number;
@@ -33,9 +50,11 @@ function PuzzlePage() {
       : 'history';
 
   const [loading, setLoading] = useState(false);
+  const [loadingWordStats, setLoadingWordStats] = useState(false);
   const [puzzleData, setPuzzleData] = useState<OnePuzzle | null>(null);
   const [wordStats, setWordStats] = useState<WordStatsRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [wordStatsError, setWordStatsError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState<DateTime | null>(null);
 
   // Derive sort + exposure settings from URL search params so views are shareable
@@ -69,24 +88,21 @@ function PuzzlePage() {
     setSearchParams(next);
   };
 
-  const fetchByDate = async (isoDate: string) => {
+  // Fast fetch: Puzzle data only
+  const fetchPuzzle = async (isoDate: string) => {
     setLoading(true);
     setError(null);
     setPuzzleData(null);
-    setWordStats(null);
+    setWordStatsError(null); // Clear word stats error on new puzzle
 
     try {
-      const response = await fetch(`/date?date=${isoDate}`);
+      const response = await fetch(`/puzzle/${isoDate}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const responseData = DateResponseSchema.parse(await response.json());
-      const puzzle = responseData.puzzle;
-      const stats = responseData.wordStats;
-      console.log('Game data for', isoDate, puzzle);
-      console.log('Word stats:', stats);
-      setPuzzleData(puzzle);
-      setWordStats(stats);
+      const puzzleResponse = PuzzleResponseSchema.parse(await response.json());
+      console.log('Puzzle data for', isoDate, puzzleResponse);
+      setPuzzleData(puzzleResponse.puzzle);
     } catch (err) {
       setError(err instanceof Error ? err.stack! : 'An error occurred');
     } finally {
@@ -94,7 +110,36 @@ function PuzzlePage() {
     }
   };
 
-  // When the route date changes, update state and fetch data
+  // Slow fetch: Word statistics only
+  const fetchWordStats = async (isoDate: string) => {
+    // Only fetch word stats for history tab
+    if (tab !== 'history') return;
+
+    setLoadingWordStats(true);
+    setWordStatsError(null);
+
+    try {
+      const response = await fetch(`/puzzle/${isoDate}/word-stats`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const wordStatsResponse = WordStatsResponseSchema.parse(await response.json());
+      console.log('Word stats for', isoDate, wordStatsResponse);
+      setWordStats(wordStatsResponse.wordStats);
+    } catch (err) {
+      setWordStatsError(err instanceof Error ? err.stack! : 'An error occurred');
+    } finally {
+      setLoadingWordStats(false);
+    }
+  };
+
+  // Legacy fetch function for backward compatibility
+  const fetchByDate = async (isoDate: string) => {
+    await fetchPuzzle(isoDate);
+    await fetchWordStats(isoDate);
+  };
+
+  // When the route date changes, update state and fetch puzzle data immediately
   useEffect(() => {
     if (!date) return;
     const dateTime = DateTime.fromISO(date).startOf('day');
@@ -103,8 +148,16 @@ function PuzzlePage() {
       return;
     }
     setCurrentDate(dateTime);
-    fetchByDate(dateTime.toISODate()!);
+    fetchPuzzle(dateTime.toISODate()!);
   }, [date]);
+
+  // When tab changes to history or date changes, fetch word stats
+  useEffect(() => {
+    if (!date || !currentDate) return;
+    if (tab === 'history') {
+      fetchWordStats(currentDate.toISODate()!);
+    }
+  }, [date, tab, currentDate]);
 
   const handleDateChange = (nextDate: DateTime) => {
     const nextIso = nextDate.toISODate();
@@ -170,11 +223,11 @@ function PuzzlePage() {
           </div>
         </div>
 
-        {loading && (
+        {loading && !puzzleData && (
           <HistorySkeleton />
         )}
 
-        {!loading && puzzleData && currentDate && (
+        {puzzleData && currentDate && (
           <div className="space-y-6">
             {tab === 'history' && (
               <HistoryTab
@@ -182,6 +235,8 @@ function PuzzlePage() {
                 lettersToExpose={lettersToExpose}
                 onLettersToExposeChange={handleLettersToExposeChange}
                 wordStats={wordStats}
+                loadingWordStats={loadingWordStats}
+                wordStatsError={wordStatsError}
                 sortBy={sortBy}
                 sortDirection={sortDirection}
                 onChangeSortBy={handleChangeSortBy}

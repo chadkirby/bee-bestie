@@ -11,6 +11,8 @@ interface HistoryTabProps {
   lettersToExpose: ExposureConfig;
   onLettersToExposeChange: (config: ExposureConfig) => void;
   wordStats: WordStatsRecord[] | null;
+  loadingWordStats?: boolean;
+  wordStatsError?: string | null;
   sortBy: SortKey;
   sortDirection: 'asc' | 'desc';
   onChangeSortBy: (sortBy: SortKey) => void;
@@ -22,6 +24,8 @@ export function HistoryTab({
   lettersToExpose,
   onLettersToExposeChange,
   wordStats,
+  loadingWordStats = false,
+  wordStatsError = null,
   sortBy,
   sortDirection,
   onChangeSortBy,
@@ -53,7 +57,24 @@ export function HistoryTab({
         </div>
       </CardHeader>
       <CardContent>
-        {wordStats && (
+        {loadingWordStats && (
+          <div className="animate-pulse">
+            <div className="h-4 w-32 rounded bg-muted mb-4" />
+            <div className="space-y-2">
+              <div className="h-6 rounded bg-muted" />
+              <div className="h-6 rounded bg-muted" />
+              <div className="h-6 rounded bg-muted" />
+            </div>
+          </div>
+        )}
+
+        {wordStatsError && (
+          <div className="text-destructive">
+            <p>Error loading word statistics: {wordStatsError}</p>
+          </div>
+        )}
+
+        {!loadingWordStats && !wordStatsError && wordStats && (
           <WordExplorer
             stats={wordStats}
             lettersToExpose={lettersToExpose}

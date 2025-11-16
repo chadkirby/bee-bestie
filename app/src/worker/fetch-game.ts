@@ -1,20 +1,30 @@
 import type { DateTime } from 'luxon';
-import { type OnePuzzle, DBPuzzleSchema } from '@lib/puzzle';
-import {
-  DbWordFrequencySchema,
-  DbWordFrequencyRowSchema,
-} from '@lib/word-freqs/schemas';
+import QuickLRU from 'quick-lru';
+import { type OnePuzzle, DBPuzzleSchema, OnePuzzleSchema } from '@lib/puzzle';
+import { DbWordFrequencyRowSchema } from '@lib/word-freqs/schemas';
+
+const puzzleCache = new QuickLRU<string, OnePuzzle>({ maxSize: 10 });
 
 // Database query functions
-export async function getPuzzleFromDB(env: Env, date: DateTime): Promise<OnePuzzle | null> {
+export async function getPuzzleFromDB(
+  env: Env,
+  date: DateTime
+): Promise<OnePuzzle | null> {
   const dateStr = date.toISODate()!;
+  if (puzzleCache.has(dateStr)) {
+    return puzzleCache.get(dateStr)!;
+  }
 
   // Get puzzle metadata
-  const puzzleStmt = env.bee_puzzles.prepare(`
+  const puzzleStmt = env.bee_puzzles
+    .prepare(
+      `
     SELECT date, centerLetter, outerLetters
     FROM puzzles
     WHERE date = ?
-  `).bind(dateStr);
+  `
+    )
+    .bind(dateStr);
 
   const puzzleResult = await puzzleStmt.first();
   if (!puzzleResult) return null;
@@ -24,30 +34,40 @@ export async function getPuzzleFromDB(env: Env, date: DateTime): Promise<OnePuzz
   const outerLetters = JSON.parse(dbPuzzle.outerLetters);
 
   // Reconstruct answers from word_dates table
-  const answersStmt = env.bee_puzzles.prepare(`
+  const answersStmt = env.bee_puzzles
+    .prepare(
+      `
     SELECT word FROM word_dates WHERE date = ? ORDER BY word
-  `).bind(dateStr);
+  `
+    )
+    .bind(dateStr);
 
   const answersResult = await answersStmt.all();
-  const answers = answersResult.results.map(row => row.word as string);
+  const answers = answersResult.results.map((row) => row.word as string);
 
   // Derive computed values
   const validLetters = [dbPuzzle.centerLetter, ...outerLetters];
   const pangrams = answers.filter((answer: string) => {
     const uniqueLetters = new Set(answer.split(''));
-    return uniqueLetters.size === validLetters.length &&
-           uniqueLetters.has(dbPuzzle.centerLetter);
+    return (
+      uniqueLetters.size === validLetters.length &&
+      uniqueLetters.has(dbPuzzle.centerLetter)
+    );
   });
 
-  return {
+  const puzzle: OnePuzzle = {
     displayDate: date.toFormat('LLLL d, yyyy'),
     printDate: dbPuzzle.date,
     centerLetter: dbPuzzle.centerLetter,
     outerLetters,
     validLetters,
     pangrams,
-    answers
+    answers,
   };
+
+  puzzleCache.set(dateStr, puzzle);
+
+  return puzzle;
 }
 
 export async function getDatesForWord(env: Env, word: string): Promise<string[]> {
