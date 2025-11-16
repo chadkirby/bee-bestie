@@ -1,5 +1,5 @@
 {
-	"name": "cron",
+	"name": "bee-cron",
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
@@ -11,8 +11,8 @@
 	"devDependencies": {
 		"@types/luxon": "catalog:",
 		"tsx": "catalog:",
-		"typescript": "^5.5.2",
-		"wrangler": "^4.48.0"
+		"typescript": "catalog:",
+		"wrangler": "catalog:"
 	},
 	"dependencies": {
 		"@lib/puzzle": "workspace:*",
