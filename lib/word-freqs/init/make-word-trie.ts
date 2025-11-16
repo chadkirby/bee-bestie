@@ -9,7 +9,8 @@ import { parseArgs } from "node:util";
 import { createGzip } from 'node:zlib';
 import { pack } from 'msgpackr';
 import { mean, median, standardDeviation } from 'simple-statistics';
-import type { TrieMetadata, TrieNode, WordNode } from '../src/trie.js';
+import type { TrieNode, WordNode } from '../src/trie.js';
+import { WordFreqMetadata } from '../src/word-freq-schemas.js';
 
 // Parse CSV line (handle quoted fields)
 function parseCSVLine(line: string): string[] {
@@ -159,7 +160,7 @@ console.log(
 );
 
 // Use a more memory-efficient approach for large datasets
-const serializableTrie: TrieMetadata = {
+const serializableTrie: WordFreqMetadata = {
   wordCount,
   totalFrequency,
   minFrequency,

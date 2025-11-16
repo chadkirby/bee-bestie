@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { DateTime } from 'luxon';
 import { AnswerItem } from '@/components/AnswerItem';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +29,10 @@ interface WordExplorerProps {
   lettersToExpose: ExposureConfig;
   /** ISO date string for the current puzzle (YYYY-MM-DD). */
   puzzleDateIso: string;
+  sortBy: SortKey;
+  sortDirection: 'asc' | 'desc';
+  onChangeSortBy: (sortBy: SortKey) => void;
+  onToggleSortDirection: () => void;
 }
 
 function formatLastSeen(puzzleDateIso: string, dates: string[]): string {
@@ -62,9 +66,15 @@ function formatLastSeen(puzzleDateIso: string, dates: string[]): string {
   return `${years} year${years === 1 ? '' : 's'} ago`;
 }
 
-export function WordExplorer({ stats, lettersToExpose, puzzleDateIso }: WordExplorerProps) {
-  const [sortBy, setSortBy] = useState<SortKey>('frequency');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+export function WordExplorer({
+  stats,
+  lettersToExpose,
+  puzzleDateIso,
+  sortBy,
+  sortDirection,
+  onChangeSortBy,
+  onToggleSortDirection,
+}: WordExplorerProps) {
 
   const sortedStats = useMemo(() => {
     const sorted = [...stats];
@@ -111,7 +121,7 @@ export function WordExplorer({ stats, lettersToExpose, puzzleDateIso }: WordExpl
             id="sort-by"
             className="h-7 rounded-md border bg-background px-2 text-xs"
             value={sortBy}
-            onChange={event => setSortBy(event.target.value as SortKey)}
+            onChange={(event) => onChangeSortBy(event.target.value as SortKey)}
           >
             <option value="frequency">Frequency</option>
             <option value="commonality">Commonality</option>
@@ -125,7 +135,7 @@ export function WordExplorer({ stats, lettersToExpose, puzzleDateIso }: WordExpl
           size="sm"
           variant="outline"
           className="h-7 px-2 text-xs"
-          onClick={() => setSortDirection(dir => (dir === 'desc' ? 'asc' : 'desc'))}
+          onClick={onToggleSortDirection}
         >
           {sortDirection === 'desc' ? '↓ Desc' : '↑ Asc'}
         </Button>

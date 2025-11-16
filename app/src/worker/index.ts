@@ -73,7 +73,7 @@ export default {
           const wordStats = puzzle.answers.map((word) => {
             const lower = word.toLowerCase();
             const frequency = freqMap.get(lower) || 0;
-            const stats = getWordStats(metadata, frequencies, frequency);
+            const stats = getWordStats(metadata, frequency);
             const sbHistory = sbHistoryMap.get(lower);
 
             return {

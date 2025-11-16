@@ -2,16 +2,11 @@ import type { WordFreqMetadata, WordStats } from './word-freq-schemas.js';
 
 export function getWordStats(
   metadata: WordFreqMetadata,
-  frequenciesSorted: number[],
   frequency: number
 ): Omit<WordStats, 'word'> {
   // const zscore = this.stddevFrequency > 0 ? (freq - this.meanFrequency) / this.stddevFrequency : 0;
   const probability = frequency / metadata.totalFrequency;
-  const commonality = computeCommonalityFromMetadata(
-    metadata,
-    frequenciesSorted,
-    frequency
-  );
+  const commonality = computeCommonalityFromMetadata(metadata, frequency);
   return {
     found: true,
     frequency,
@@ -22,13 +17,11 @@ export function getWordStats(
 
 function computeCommonalityFromMetadata(
   metadata: WordFreqMetadata,
-  frequenciesSorted: number[],
   freq: number
 ): number {
   const probability = freq / metadata.totalFrequency;
-  const maxProbability =
-    frequenciesSorted[frequenciesSorted.length - 1]! / metadata.totalFrequency;
-  const minProbability = frequenciesSorted[0]! / metadata.totalFrequency;
+  const maxProbability = metadata.maxFrequency / metadata.totalFrequency;
+  const minProbability = metadata.minFrequency / metadata.totalFrequency;
 
   const commonality = computeCommonality(
     probability,

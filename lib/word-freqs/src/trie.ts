@@ -73,7 +73,7 @@ export class WordFreqTrie {
     // Return all found words
     return results.map(({ word, node }) => ({
       word,
-      ...getWordStats(this.metadata, this.frequenciesSorted, node.frequency),
+      ...getWordStats(this.metadata, node.frequency),
     }));
   }
 
@@ -106,25 +106,41 @@ export class WordFreqTrie {
   // Find a word in the trie
   async find(word: string, fallbackFreq = 0): Promise<WordStats> {
     if (!word[0])
-      return { word, ...getWordStats(this.metadata, this.frequenciesSorted, fallbackFreq), found: false };
+      return {
+        word,
+        ...getWordStats(this.metadata, fallbackFreq),
+        found: false,
+      };
 
     let current = await this.getRoot(word[0]);
     if (!current) {
-      return { word, ...getWordStats(this.metadata, this.frequenciesSorted, fallbackFreq), found: false };
+      return {
+        word,
+        ...getWordStats(this.metadata, fallbackFreq),
+        found: false,
+      };
     }
 
     for (const char of word.toLowerCase()) {
       if (!current.children[char]) {
-        return { word, ...getWordStats(this.metadata, this.frequenciesSorted, fallbackFreq), found: false };
+        return {
+          word,
+          ...getWordStats(this.metadata, fallbackFreq),
+          found: false,
+        };
       }
       current = current.children[char] as TrieNode;
     }
 
     if (current.isEndOfWord) {
       // Calculate percentile: percent of words with lower or equal frequency
-      return { word, ...getWordStats(this.metadata, this.frequenciesSorted, current.frequency) };
+      return { word, ...getWordStats(this.metadata, current.frequency) };
     } else {
-      return { word, ...getWordStats(this.metadata, this.frequenciesSorted, fallbackFreq), found: false };
+      return {
+        word,
+        ...getWordStats(this.metadata, fallbackFreq),
+        found: false,
+      };
     }
   }
 

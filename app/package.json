@@ -14,17 +14,17 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.13.4",
-    "@cloudflare/workers-types": "^4.20251111.0",
-    "@types/luxon": "^3.7.1",
+    "@cloudflare/workers-types": "catalog:",
+    "@types/luxon": "catalog:",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.3",
-    "prettier": "^3.6.2",
+    "prettier": "catalog:",
     "tsx": "catalog:",
     "tw-animate-css": "catalog:",
-    "typescript": "^5.8.3",
-    "vite": "^7.1.7",
-    "wrangler": "^4.38.0"
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "wrangler": "catalog:"
   },
   "dependencies": {
     "@lib/puzzle": "workspace:*",
@@ -36,13 +36,14 @@
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "lucide-react": "catalog:",
-    "luxon": "^3.7.2",
+    "luxon": "catalog:",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-resizable-panels": "^3.0.6",
+    "react-router-dom": "catalog:",
     "tailwind-merge": "catalog:",
     "tailwindcss": "catalog:",
-    "zod": "^4.1.12"
+    "zod": "catalog:"
   },
   "packageManager": "pnpm@10.22.0",
   "volta": {
