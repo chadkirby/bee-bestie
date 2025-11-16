@@ -1,6 +1,6 @@
 import type { DateTime } from 'luxon';
 import QuickLRU from 'quick-lru';
-import { type OnePuzzle, DBPuzzleSchema, OnePuzzleSchema } from '@lib/puzzle';
+import { type OnePuzzle, DBPuzzleSchema } from '@lib/puzzle';
 import { DbWordFrequencyRowSchema } from '@lib/word-freqs/schemas';
 
 const puzzleCache = new QuickLRU<string, OnePuzzle>({ maxSize: 10 });
@@ -70,38 +70,46 @@ export async function getPuzzleFromDB(
   return puzzle;
 }
 
-export async function getDatesForWord(env: Env, word: string): Promise<string[]> {
-  const stmt = env.bee_puzzles.prepare(`
+const datesForWordCache = new QuickLRU<string, string[]>({ maxSize: 300 });
+export async function getDatesForWord(
+  env: Env,
+  word: string
+): Promise<string[]> {
+  if (!datesForWordCache.has(word.toLowerCase())) {
+    const stmt = env.bee_puzzles
+      .prepare(
+        `
     SELECT date
     FROM word_dates
     WHERE word = ?
     ORDER BY date
-  `).bind(word.toLowerCase());
+  `
+      )
+      .bind(word.toLowerCase());
 
-  const results = await stmt.all();
-  return results.results.map(row => row.date as string);
+    const results = await stmt.all();
+    const dates = results.results.map((row) => row.date as string);
+    datesForWordCache.set(word.toLowerCase(), dates);
+  }
+  return datesForWordCache.get(word.toLowerCase())!;
 }
 
-export async function getWordFrequency(env: Env, word: string): Promise<number | null> {
-  const stmt = env.bee_puzzles.prepare(`
-    SELECT frequency
-    FROM word_frequencies
-    WHERE word = ?
-  `).bind(word.toLowerCase());
-
-  const result = await stmt.first();
-  return result ? (result.frequency as number) : null;
-}
-
-export async function getWordFrequencies(env: Env, words: string[]): Promise<Map<string, number>> {
+export async function getWordFrequencies(
+  env: Env,
+  words: string[]
+): Promise<Map<string, number>> {
   if (words.length === 0) return new Map();
 
   const placeholders = words.map(() => '?').join(',');
-  const stmt = env.bee_puzzles.prepare(`
+  const stmt = env.bee_puzzles
+    .prepare(
+      `
     SELECT word, frequency
     FROM word_frequencies
     WHERE word IN (${placeholders})
-  `).bind(...words.map(w => w.toLowerCase()));
+  `
+    )
+    .bind(...words.map((w) => w.toLowerCase()));
 
   const results = await stmt.all();
   const freqMap = new Map<string, number>();
@@ -124,15 +132,19 @@ export async function getWordSBStats(
 ): Promise<Map<string, SbHistory>> {
   if (words.length === 0) return new Map();
 
-  const lowerWords = words.map(w => w.toLowerCase());
+  const lowerWords = words.map((w) => w.toLowerCase());
   const placeholders = lowerWords.map(() => '?').join(',');
 
-  const stmt = env.bee_puzzles.prepare(`
+  const stmt = env.bee_puzzles
+    .prepare(
+      `
     SELECT word, date
     FROM word_dates
     WHERE word IN (${placeholders}) AND date < ?
     ORDER BY date
-  `).bind(...lowerWords, beforeDate);
+  `
+    )
+    .bind(...lowerWords, beforeDate);
 
   const results = await stmt.all();
   const historyMap = new Map<string, SbHistory>();
@@ -149,61 +161,4 @@ export async function getWordSBStats(
   }
 
   return historyMap;
-}
-
-export async function getGame(date: DateTime): Promise<OnePuzzle>{
-  const res = await fetch(
-    `https://beesolver.com/${date.toFormat('yyyy-MM-dd')}/answers`
-  );
-  const data = {
-    centerLetter: '',
-    outerLetters: '',
-    solutions: [] as string[][],
-  };
-  const response = new HTMLRewriter()
-    .on('input', {
-      element(element) {
-        if (element.getAttribute('name') === 'centerLetter') {
-          data.centerLetter = element.getAttribute('value') || '';
-        } else if (element.getAttribute('name') === 'outerLetters') {
-          data.outerLetters += element.getAttribute('value') || '';
-        }
-      },
-    })
-    .on('li', {
-      element() {
-        data.solutions.push([]);
-      },
-      text(text) {
-        data.solutions.at(-1)!.push(text.text);
-      },
-    })
-    .transform(res);
-
-  await response.arrayBuffer(); // Ensure the response is fully processed
-
-  // convert to PuzzleData format
-  const outerLetters = Array.from(new Set(data.outerLetters.split('')));
-  const validLetters = Array.from(new Set([data.centerLetter, ...outerLetters]));
-  const pangrams = new Set(data.solutions
-    .map((s) => s.join(''))
-    .filter((s) => {
-      const uniqueLetters = new Set(s.split(''));
-      return (
-        uniqueLetters.size === validLetters.length &&
-        uniqueLetters.has(data.centerLetter)
-      );
-    }));
-  const puzzle: OnePuzzle = {
-    displayDate: date.toFormat('LLLL d, yyyy'),
-    printDate: date.toISODate()!,
-    centerLetter: data.centerLetter,
-    outerLetters,
-    validLetters,
-    pangrams: Array.from(pangrams),
-    answers: Array.from(new Set(data.solutions.map((s) => s.join('')))),
-  };
-
-
-  return puzzle;
 }
