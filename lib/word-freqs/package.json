@@ -13,8 +13,16 @@
     "./schemas": {
       "import": "./dist/word-freq-schemas.js",
       "types": "./dist/word-freq-schemas.d.ts"
+    },
+    "./word-stats": {
+      "import": "./dist/word-stats.js",
+      "types": "./dist/word-stats.d.ts"
     }
   },
+  "files": [
+    "dist",
+    "word-stats-metadata.json"
+  ],
   "scripts": {
     "test": "vitest",
     "typecheck": "tsc --skipLibCheck --noEmit",

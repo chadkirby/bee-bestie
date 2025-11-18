@@ -4,34 +4,50 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LetterGrid } from '@/components/LetterGrid';
 import { ExposureControls } from '@/components/ExposureControls';
 import { WordExplorer, type WordStatsRecord, type BasicWordRecord, type WordRecord, type SortKey } from '@/components/WordExplorer';
-import type { ExposureConfig } from './App';
+import type { ExposureConfig, OnLettersToExposeChange, OnChangeSortBy, OnToggleSortDirection } from './types';
+import { getBeeScore } from '@/lib/utils.ts';
+import { Badge } from '@/components/ui/badge';
 
-interface HistoryTabProps {
+interface PuzzleTabProps {
   puzzle: OnePuzzle;
   lettersToExpose: ExposureConfig;
-  onLettersToExposeChange: (config: ExposureConfig) => void;
+  onLettersToExposeChange: OnLettersToExposeChange;
   wordStats: WordStatsRecord[] | null;
   loadingWordStats?: boolean;
-  wordStatsError?: string | null;
   sortBy: SortKey;
   sortDirection: 'asc' | 'desc';
-  onChangeSortBy: (sortBy: SortKey) => void;
-  onToggleSortDirection: () => void;
+  onChangeSortBy: OnChangeSortBy;
+  onToggleSortDirection: OnToggleSortDirection;
+}
+
+function ScoringSummary({ totalPoints }: { totalPoints: number }) {
+  const geniusThreshold = Math.floor(totalPoints * 0.7);
+
+  return (
+    <div className="text-center space-y-2">
+      <div className="text-2xl font-bold text-primary">{totalPoints.toLocaleString()}</div>
+      <div className="text-sm text-muted-foreground">Total Points</div>
+      <div className="flex items-center justify-center gap-2">
+        <Badge variant="secondary" className="text-xs">
+          Genius: {geniusThreshold.toLocaleString()}
+        </Badge>
+      </div>
+    </div>
+  );
 }
 
 
-export function HistoryTab({
+export function PuzzleTab({
   puzzle,
   lettersToExpose,
   onLettersToExposeChange,
   wordStats,
   loadingWordStats = false,
-  wordStatsError = null,
   sortBy,
   sortDirection,
   onChangeSortBy,
   onToggleSortDirection,
-}: HistoryTabProps) {
+}: PuzzleTabProps) {
   // Create progressive word list: basic puzzle answers enriched with stats when available
   const progressiveWordList: WordRecord[] = puzzle.answers.map(answer => {
     // Find matching word stats if available
@@ -40,11 +56,12 @@ export function HistoryTab({
     if (wordStat) {
       return wordStat; // Full stats available
     } else {
-      return { word: answer, hasStats: false }; // Basic word only
+      return { word: answer, score: getBeeScore(answer), hasStats: false }; // Basic word only
     }
   });
 
-  const hasAnyStats = progressiveWordList.some(record => 'frequency' in record);
+  // Calculate total points from all answers
+  const totalPoints = puzzle.answers.reduce((sum, answer) => sum + getBeeScore(answer), 0);
 
   return (
     <Card>
@@ -54,12 +71,15 @@ export function HistoryTab({
             <CardTitle className="text-base font-semibold">
               {DateTime.fromISO(puzzle.printDate).toFormat('EEEE')}, {puzzle.displayDate}
             </CardTitle>
-            <div className="flex justify-center sm:justify-start">
+            <div className="flex items-center justify-center gap-6 sm:justify-start">
               <div className="scale-90 sm:scale-100">
                 <LetterGrid
                   centerLetter={puzzle.centerLetter.toUpperCase()}
                   outerLetters={puzzle.outerLetters.map((letter) => letter.toUpperCase())}
                 />
+              </div>
+              <div className="flex flex-col items-center">
+                <ScoringSummary totalPoints={totalPoints} />
               </div>
             </div>
           </div>
@@ -81,8 +101,6 @@ export function HistoryTab({
           onChangeSortBy={onChangeSortBy}
           onToggleSortDirection={onToggleSortDirection}
           loadingWordStats={loadingWordStats}
-          wordStatsError={wordStatsError}
-          hasAnyStats={hasAnyStats}
         />
       </CardContent>
     </Card>

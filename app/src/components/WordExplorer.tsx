@@ -3,14 +3,11 @@ import { DateTime } from 'luxon';
 import { AnswerItem } from '@/components/AnswerItem';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-
-export type ExposureConfig = {
-  startingLetters: number;
-  endingLetters: number;
-};
+import type { ExposureConfig, OnChangeSortBy, OnToggleSortDirection } from '@/ui/types';
 
 export type WordStatsRecord = {
   word: string;
+  score: number;
   found: boolean;
   frequency: number;
   commonality: number;
@@ -24,14 +21,50 @@ export type WordStatsRecord = {
 // Basic word record for progressive loading (no stats yet)
 export type BasicWordRecord = {
   word: string;
+  score: number;
   hasStats: false;
 };
 
 // Union type for progressive word records
 export type WordRecord = WordStatsRecord | BasicWordRecord;
 
-// Sorting by frequency (hard count), commonality, SB history, or word (alpha).
-export type SortKey = 'frequency' | 'commonality' | 'sbCount' | 'lastSeen' | 'word';
+// Sorting by score
+export type SortKey = 'score' | 'frequency' | 'obscurity' | 'sbCount' | 'lastSeen' | 'word';
+
+// Type-safe configuration for sort options and display headers
+export interface SortConfig {
+  key: SortKey;
+  label: string;
+  getValue: (stat: WordRecord, puzzleDateIso: string) => string | number;
+}
+
+export const SORT_CONFIGS: SortConfig[] = [
+  {
+    key: 'score',
+    label: 'Points',
+    getValue: (stat) => stat.score,
+  },
+  {
+    key: 'frequency',
+    label: 'Count (wiki)',
+    getValue: (stat) => ('frequency' in stat) ? stat.frequency.toLocaleString() : '--',
+  },
+  {
+    key: 'obscurity',
+    label: 'Obscurity (wiki)',
+    getValue: (stat) => ('commonality' in stat) ? (1 - stat.commonality).toFixed(3) : '--',
+  },
+  {
+    key: 'sbCount',
+    label: 'Count (SB)',
+    getValue: (stat) => ('sbHistory' in stat) ? stat.sbHistory.length : '--',
+  },
+  {
+    key: 'lastSeen',
+    label: 'Last seen (SB)',
+    getValue: (stat, puzzleDateIso) => ('sbHistory' in stat) ? formatLastSeen(puzzleDateIso, stat.sbHistory) : '--',
+  },
+] as const;
 
 interface WordExplorerProps {
   stats: WordRecord[];
@@ -40,11 +73,9 @@ interface WordExplorerProps {
   puzzleDateIso: string;
   sortBy: SortKey;
   sortDirection: 'asc' | 'desc';
-  onChangeSortBy: (sortBy: SortKey) => void;
-  onToggleSortDirection: () => void;
+  onChangeSortBy: OnChangeSortBy;
+  onToggleSortDirection: OnToggleSortDirection;
   loadingWordStats?: boolean;
-  wordStatsError?: string | null;
-  hasAnyStats?: boolean;
 }
 
 function formatLastSeen(puzzleDateIso: string, dates: string[]): string {
@@ -87,8 +118,6 @@ export function WordExplorer({
   onChangeSortBy,
   onToggleSortDirection,
   loadingWordStats = false,
-  wordStatsError = null,
-  hasAnyStats = false,
 }: WordExplorerProps) {
 
   const sortedStats = useMemo(() => {
@@ -130,12 +159,23 @@ export function WordExplorer({
         return (aCount - bCount) * dir;
       }
 
-      // numeric fields: frequency, commonality
-      if (sortBy === 'frequency' || sortBy === 'commonality') {
+      // numeric fields: score, frequency, obscurity
+      if (sortBy === 'score' || sortBy === 'frequency' || sortBy === 'obscurity') {
+      // Score doesn't require stats, but frequency and obscurity do
+        if (sortBy === 'score') {
+          return (a.score - b.score) * dir;
+        }
+
         // Put words without stats at the end
         if (!aHasStats && !bHasStats) return a.word.localeCompare(b.word);
         if (!aHasStats) return 1;
         if (!bHasStats) return -1;
+        if (sortBy === 'obscurity') {
+          const aObscurity = 1 - a.commonality;
+          const bObscurity = 1 - b.commonality;
+          if (aObscurity === bObscurity) return 0;
+          return (aObscurity - bObscurity) * dir;
+        }
 
         return (a[sortBy] - b[sortBy]) * dir;
       }
@@ -157,10 +197,11 @@ export function WordExplorer({
             value={sortBy}
             onChange={(event) => onChangeSortBy(event.target.value as SortKey)}
           >
-            <option value="frequency">Frequency</option>
-            <option value="commonality">Commonality</option>
-            <option value="sbCount">SB count</option>
-            <option value="lastSeen">Last seen</option>
+            {SORT_CONFIGS.map(({ key, label }) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
             <option value="word">Word</option>
           </select>
         </div>
@@ -179,55 +220,37 @@ export function WordExplorer({
         {sortedStats.map(stat => (
           <div
             key={stat.word}
-            className="flex flex-col gap-1.5 rounded-md border px-2 py-1.5 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-1.5 rounded-md border px-2 py-1.5 sm:grid sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] sm:items-center"
           >
-            <div className="flex items-center gap-2">
-              <AnswerItem answer={stat.word} lettersToExpose={lettersToExpose} />
-              {('frequency' in stat) && !stat.found && (
-                <Badge variant="destructive" className="text-[0.65rem]">
-                  Not in frequency corpus
-                </Badge>
-              )}
-              {('frequency' in stat) === false && loadingWordStats && (
-                <Badge variant="secondary" className="text-[0.65rem] animate-pulse">
-                  Loading...
-                </Badge>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-3 text-[0.7rem] font-mono text-muted-foreground sm:text-xs">
-              <div>
-                <div className="text-[0.6rem] uppercase tracking-wide text-muted-foreground">
-                  Frequency
-                </div>
-                <div className="text-foreground">
-                  {('frequency' in stat) ? stat.frequency.toLocaleString() : '--'}
-                </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center">
+                <AnswerItem answer={stat.word} lettersToExpose={lettersToExpose} />
               </div>
-              <div>
-                <div className="text-[0.6rem] uppercase tracking-wide text-muted-foreground">
-                  Commonality
-                </div>
-                <div className="text-foreground">
-                  {('commonality' in stat) ? stat.commonality.toFixed(3) : '--'}
-                </div>
-              </div>
-              <div>
-                <div className="text-[0.6rem] uppercase tracking-wide text-muted-foreground">
-                  SB Count
-                </div>
-                <div className="text-foreground">
-                  {('sbHistory' in stat) ? stat.sbHistory.length : '--'}
-                </div>
-              </div>
-              <div>
-                <div className="text-[0.6rem] uppercase tracking-wide text-muted-foreground">
-                  Last seen
-                </div>
-                <div className="text-foreground">
-                  {('sbHistory' in stat) ? formatLastSeen(puzzleDateIso, stat.sbHistory) : '--'}
-                </div>
+              <div className="flex flex-wrap items-center gap-1">
+                {('frequency' in stat) && !stat.found && (
+                  <Badge variant="destructive" className="text-[0.65rem]">
+                    Not in frequency corpus
+                  </Badge>
+                )}
+                {('frequency' in stat) === false && loadingWordStats && (
+                  <Badge variant="secondary" className="text-[0.65rem] animate-pulse">
+                    Loading...
+                  </Badge>
+                )}
               </div>
             </div>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[0.7rem] font-mono text-muted-foreground sm:text-xs sm:grid-cols-5">
+              {SORT_CONFIGS.map(({ key, label, getValue }) => (
+                <div key={key}>
+                  <dt className="text-[0.6rem] uppercase tracking-wide text-muted-foreground">
+                    {label}
+                  </dt>
+                  <dd className={key === 'score' ? 'font-semibold text-yellow-600' : 'text-foreground'}>
+                    {getValue(stat, puzzleDateIso)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
         ))}
       </div>

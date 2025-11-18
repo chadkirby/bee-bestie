@@ -9,7 +9,7 @@ import { parseArgs } from "node:util";
 import { createGzip } from 'node:zlib';
 import { pack } from 'msgpackr';
 import { mean, median, standardDeviation } from 'simple-statistics';
-import type { TrieNode, WordNode } from '../src/trie.js';
+import type { TrieNode } from '../src/trie.js';
 import { WordFreqMetadata } from '../src/word-freq-schemas.js';
 
 // Parse CSV line (handle quoted fields)
@@ -71,7 +71,7 @@ console.log(`Parsing ${dataLines.length} rows...`);
 // Create the root of our trie
 const root: TrieNode = {
   children: {},
-  isEndOfWord: false,
+  end: false,
 };
 
 const MIN_FREQ = 0;
@@ -81,7 +81,6 @@ let totalFrequency = 0;
 let totalArticleCount = 0;
 let hyphenatesCount = 0;
 const allFrequencies: number[] = [];
-const byFirstLetter: Record<string, number> = {};
 
 // Build the prefix tree
 for (const line of dataLines) {
@@ -111,40 +110,14 @@ for (const line of dataLines) {
     if (!currentNode.children[char]) {
       currentNode.children[char] = {
         children: {},
-        isEndOfWord: false,
+        end: false,
       };
     }
     currentNode = currentNode.children[char] as TrieNode;
   }
 
-  // Mark end of word and store data, or combine if already present
-  if (currentNode.isEndOfWord) {
-    // Combine frequencies
-    currentNode.frequency += frequency;
-    currentNode.articleCount = (currentNode.articleCount || 0) + articleCount;
-  } else {
-    const wordNode: WordNode = {
-      ...currentNode,
-      isEndOfWord: true,
-      frequency,
-      articleCount,
-      hyphenatedForms: [],
-    };
-    currentNode = wordNode;
-  }
-
-  // Store hyphenated forms
-  if (hyphenatesStr && hyphenatesStr.trim()) {
-    const hyphenates = hyphenatesStr
-      .split(';')
-      .map((h) => h.trim())
-      .filter(Boolean);
-    currentNode.hyphenatedForms = hyphenates;
-    hyphenatesCount += hyphenates.length;
-  }
-
-  byFirstLetter[normalizedWord[0]!] =
-    (byFirstLetter[normalizedWord[0]!] || 0) + 1;
+  // Mark end of word
+  currentNode.end = true;
 }
 
 // Compute statistics for percentiles, log, rank, z-score
@@ -159,8 +132,7 @@ console.log(
   `Trie built with ${wordCount} words and total frequency of ${totalFrequency.toLocaleString()}`
 );
 
-// Use a more memory-efficient approach for large datasets
-const serializableTrie: WordFreqMetadata = {
+const metadata: WordFreqMetadata = {
   wordCount,
   totalFrequency,
   minFrequency,
@@ -174,18 +146,11 @@ const serializableTrie: WordFreqMetadata = {
 
 // Write the serializable trie metadata to JSON file
 const metadataPath = path.join(
-  path.dirname(wordFreqFile),
-  `${path.basename(wordFreqFile, path.extname(wordFreqFile))}-metadata.json`
+  import.meta.dirname,
+  '../word-stats-metadata.json'
 );
 
-await writeFile(metadataPath, JSON.stringify(serializableTrie, null, 2));
-await writeFile(
-  path.join(
-    path.dirname(wordFreqFile),
-    `${path.basename(wordFreqFile, path.extname(wordFreqFile))}-sorted-freqs.json`
-  ),
-  JSON.stringify(allFrequencies)
-);
+await writeFile(metadataPath, JSON.stringify(metadata, null, 2));
 
 console.log(`Metadata written to: ${metadataPath}`);
 
@@ -208,17 +173,17 @@ for (const [key, value] of Object.entries(root.children)) {
   await pipeline(source, gzip, destination);
 
   filesCreated++;
-  const fileSizeKB = packedSubtrie.byteLength / 1024;
-  totalCompressedSize += fileSizeKB;
-  fileStats[key] = fileSizeKB;
+  const fileSizeMB = packedSubtrie.byteLength / (1024 * 1024);
+  totalCompressedSize += fileSizeMB;
+  fileStats[key] = fileSizeMB;
 
-  console.log(`Created ${subtriePath} (${fileSizeKB.toFixed(2)} KB)`);
+  console.log(`Created ${subtriePath} (${fileSizeMB.toFixed(2)} MB)`);
 }
 
 console.log(`\nCreated ${filesCreated} individual trie files`);
-console.log(`Total uncompressed size: ${totalCompressedSize.toFixed(2)} KB`);
+console.log(`Total uncompressed size: ${totalCompressedSize.toFixed(2)} MB`);
 console.log(
-  `Average file size: ${(totalCompressedSize / filesCreated).toFixed(2)} KB`
+  `Average file size: ${(totalCompressedSize / filesCreated).toFixed(2)} MB`
 );
 
 // Display detailed file statistics
@@ -260,7 +225,7 @@ function findWordInTrie(word: string): TrieNode | null {
     currentNode = currentNode.children[char] as TrieNode;
   }
 
-  return currentNode?.isEndOfWord ? currentNode : null;
+  return currentNode?.end ? currentNode : null;
 }
 
 // Test with specific words from your CSV
@@ -268,9 +233,9 @@ const testWords = ['above', 'scholars', 'highlight', 'state-oriented'];
 console.log('\nTesting trie with sample words:');
 for (const word of testWords) {
   const node = findWordInTrie(word);
-  if (node && node.isEndOfWord) {
+  if (node && node.end) {
     console.log(
-      `- "${word}": freq=${node.frequency.toLocaleString()}, articles=${node.articleCount?.toLocaleString()}, hyphenated=${JSON.stringify(node.hyphenatedForms)}`
+      `- "${word}": found in trie (node has ${Object.keys(node.children).length} children)`
     );
   } else {
     console.log(`- "${word}": not found`);

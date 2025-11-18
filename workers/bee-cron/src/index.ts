@@ -1,4 +1,4 @@
-import { NYTPuzzleDataSchema, DBPuzzleSchema, type DBPuzzle } from '@lib/puzzle';
+import { NYTPuzzleDataSchema, DBPuzzleSchema, type DBPuzzle, getDbManager } from '@lib/puzzle';
 import { DateTime } from 'luxon';
 
 async function getToday() {
@@ -47,11 +47,15 @@ export default {
 		console.log(`Current time in EST: ${easternNow}, PST: ${pacificNow}`);
 
 		try {
+			// Initialize DB manager
+			const dbManager = getDbManager(env.BEE_PUZZLES);
+
 			// Fetch today's puzzle data from NYT
 			const gameData = await getToday();
 			const puzzles = [gameData.today, ...gameData.pastPuzzles.thisWeek, ...gameData.pastPuzzles.lastWeek];
+
 			for (const puzzle of puzzles) {
-				console.log(`Fetched puzzle for ${puzzle.printDate}`);
+				console.log(`Processing puzzle for ${puzzle.printDate}`);
 
 				// Prepare data for database insertion
 				const dbPuzzleData: DBPuzzle = {
@@ -63,38 +67,67 @@ export default {
 				// Validate data with DBPuzzleSchema
 				const validatedPuzzle = DBPuzzleSchema.parse(dbPuzzleData);
 
-				// Insert/update puzzle in database
-				const insertPuzzleStmt = env.bee_puzzles
-					.prepare(
-						`
-					INSERT OR IGNORE INTO puzzles (date, centerLetter, outerLetters)
-					VALUES (?, ?, ?)
-				`,
-					)
-					.bind(validatedPuzzle.date, validatedPuzzle.centerLetter, validatedPuzzle.outerLetters);
-
-				const puzzleResult = await insertPuzzleStmt.run();
-				console.log(`Inserted puzzle for ${validatedPuzzle.date}, changes: ${puzzleResult.meta?.changes}`);
-
-				// Insert word-date relationships
-				const wordDateInserts = puzzle.answers.map((word) =>
-					env.bee_puzzles
-						.prepare(
-							`
-					INSERT OR IGNORE INTO word_dates (word, date)
-					VALUES (?, ?)
-				`,
-						)
-						.bind(word.toLowerCase(), validatedPuzzle.date),
-				);
-
-				if (wordDateInserts.length > 0) {
-					const wordDateResults = await env.bee_puzzles.batch(wordDateInserts);
-					const totalChanges = wordDateResults.reduce((sum, result) => sum + (result.meta?.changes || 0), 0);
-					console.log(`Inserted ${totalChanges} word-date relationships`);
+				// Check if puzzle already exists
+				const puzzleExists = await dbManager.puzzleExists(validatedPuzzle.date);
+				if (puzzleExists) {
+					console.log(`Puzzle for ${validatedPuzzle.date} already exists, skipping`);
+					// continue;
 				}
 
+				// Use DB manager to insert puzzle and word-date relationships
+				const result = await dbManager.upsertPuzzleWithWords(validatedPuzzle, puzzle.answers);
+
+				console.log(`Puzzle insertion for ${validatedPuzzle.date}:`, {
+					puzzleInserted: result.puzzleInserted,
+					wordDatesInserted: result.wordDatesInserted,
+				});
+
 				console.log(`Successfully processed daily puzzle for ${validatedPuzzle.date}`);
+
+				// stream data from R2:bee-data/word_stats.csv to solve any missing words
+				const r2Object = await env.BEE_BUCKET.get('word_stats.csv');
+				if (!r2Object) {
+					console.error('word_stats.csv not found in R2 bucket');
+					continue;
+				}
+
+				const readableStream = r2Object.body;
+				if (!readableStream) {
+					console.error('word_stats.csv has no body stream');
+					continue;
+				}
+
+				const answerPattern = new RegExp(`^"[${puzzle.outerLetters.join('')}${puzzle.centerLetter}]{4,}"$`, 'i');
+				const otherAnswers: string[] = [];
+				// we can't fit all word freqs in memory, so stream and check each word
+				const reader = readableStream.getReader();
+				const decoder = new TextDecoder('utf-8');
+				let { value: chunk, done: readerDone } = await reader.read();
+				let buffer = '';
+				while (!readerDone) {
+					buffer += decoder.decode(chunk, { stream: true });
+					if (/\n/.test(buffer)) {
+						let lines = buffer.split('\n');
+						buffer = lines.pop() || '';
+						for (const line of lines) {
+							const [word] = line.split(',');
+							if (answerPattern.test(word) && !puzzle.answers.includes(word)) {
+								otherAnswers.push(word);
+							}
+						}
+					}
+					({ value: chunk, done: readerDone } = await reader.read());
+				}
+				// Process any remaining buffer
+				if (buffer) {
+					const lines = buffer.split('\n');
+					for (const line of lines) {
+						const [word] = line.split(',');
+						if (answerPattern.test(word) && !puzzle.answers.includes(word)) {
+							otherAnswers.push(word);
+						}
+					}
+				}
 			}
 		} catch (error) {
 			console.error('Error processing daily puzzle:', error);

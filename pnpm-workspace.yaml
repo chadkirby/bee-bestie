@@ -4,7 +4,7 @@ packages:
   - workers/*
 
 catalog:
-  '@cloudflare/workers-types': ^4.20251115.0
+  '@cloudflare/workers-types': 4.20251115.0
   '@radix-ui/react-label': ^2.1.8
   '@radix-ui/react-separator': ^1.1.8
   '@radix-ui/react-slot': ^1.2.4
@@ -14,10 +14,10 @@ catalog:
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
   lucide-react: ^0.553.0
-  luxon: ^3.7.2
+  luxon: 3.7.2
   msgpackr: ^1.11.5
   prettier: ^3.6.2
-  quick-lru: ^7.3.0
+  quick-lru: 7.3.0
   react-router-dom: ^7.9.6
   simple-statistics: ^7.8.8
   tailwind-merge: ^3.4.0

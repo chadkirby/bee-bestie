@@ -1,1 +1,4 @@
 GET http://localhost:8787/__scheduled?cron=*+*+*+*+*
+
+###
+GET https://www.nytimes.com/svc/games/state/spelling_bee/latest?puzzle_id=19214

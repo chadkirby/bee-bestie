@@ -1,12 +1,12 @@
 import type { WordFreqMetadata, WordStats } from './word-freq-schemas.js';
+import metadata from '../word-stats-metadata.json' with { type: 'json' };
 
-export function getWordStats(
-  metadata: WordFreqMetadata,
-  frequency: number
-): Omit<WordStats, 'word'> {
+export const wordFreqMetadata: WordFreqMetadata = metadata as WordFreqMetadata;
+
+export function getWordStats(frequency: number): Omit<WordStats, 'word'> {
   // const zscore = this.stddevFrequency > 0 ? (freq - this.meanFrequency) / this.stddevFrequency : 0;
   const probability = frequency / metadata.totalFrequency;
-  const commonality = computeCommonalityFromMetadata(metadata, frequency);
+  const commonality = computeCommonalityFromMetadata(frequency);
   return {
     found: true,
     frequency,
@@ -16,12 +16,19 @@ export function getWordStats(
 }
 
 function computeCommonalityFromMetadata(
-  metadata: WordFreqMetadata,
-  freq: number
+  freq: number,
+  {
+    maxFrequency,
+    minFrequency,
+    totalFrequency,
+  }: Pick<
+    WordFreqMetadata,
+    'totalFrequency' | 'maxFrequency' | 'minFrequency'
+  > = wordFreqMetadata
 ): number {
-  const probability = freq / metadata.totalFrequency;
-  const maxProbability = metadata.maxFrequency / metadata.totalFrequency;
-  const minProbability = metadata.minFrequency / metadata.totalFrequency;
+  const probability = freq / totalFrequency;
+  const maxProbability = maxFrequency / totalFrequency;
+  const minProbability = minFrequency / totalFrequency;
 
   const commonality = computeCommonality(
     probability,

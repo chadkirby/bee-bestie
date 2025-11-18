@@ -1,0 +1,11 @@
+{
+  "wordCount": 1801580,
+  "totalFrequency": 721051548,
+  "minFrequency": 1,
+  "maxFrequency": 12432026,
+  "meanFrequency": 400.2328778072581,
+  "medianFrequency": 1,
+  "stddevFrequency": 20219.902732125658,
+  "totalArticleCount": 415510330,
+  "hyphenatesCount": 79721
+}

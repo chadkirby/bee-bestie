@@ -1,10 +1,11 @@
 import { DateTime } from 'luxon';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import type { OnDateChange } from '@/ui/types';
 
 interface DateNavigationProps {
   currentDate: DateTime;
-  onDateChange: (date: DateTime) => void;
+  onDateChange: OnDateChange;
 }
 
 export function DateNavigation({ currentDate, onDateChange }: DateNavigationProps) {

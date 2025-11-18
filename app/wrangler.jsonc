@@ -18,7 +18,7 @@
   },
   "d1_databases": [
     {
-      "binding": "bee_puzzles",
+      "binding": "BEE_PUZZLES",
       "database_name": "bee-puzzles",
       "database_id": "177a65ec-0efd-42b8-9ae8-ba480d275c18",
       "remote": true

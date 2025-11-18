@@ -1,17 +1,13 @@
 import { unpack } from 'msgpackr';
 import { createGunzip } from 'node:zlib';
 import { z } from 'zod/mini';
-import type { Loader, WordFreqMetadata, WordStats } from './word-freq-schemas.js';
-import { getWordStats } from './word-stats.js';
+import type { Loader } from './word-freq-schemas.js';
+import { wordFreqMetadata } from './word-stats.js';
 
 export class WordFreqTrie {
   private roots: Record<string, TrieNode> = {};
 
-  constructor(
-    private readonly metadata: WordFreqMetadata,
-    private readonly frequenciesSorted: number[],
-    private readonly loader: Loader
-  ) {}
+  constructor(private readonly loader: Loader) {}
 
   /**
    * Finds all valid words in the trie that solve a spelling bee puzzle.
@@ -29,11 +25,11 @@ export class WordFreqTrie {
     validLetters: string[],
     requiredLetter: string,
     minLength = 4
-  ): Promise<WordStats[]> {
+  ): Promise<string[]> {
     // Results array to collect valid words
     const results: Array<{
       word: string;
-      node: WordNode;
+      node: TrieNode;
     }> = [];
     // Convert valid letters to a Set for O(1) lookup, and normalize to lowercase
     const validSet = new Set(validLetters.map((c) => c.toLowerCase()));
@@ -48,7 +44,7 @@ export class WordFreqTrie {
      */
     const dfs = (node: TrieNode, prefix: string, usedRequired: boolean) => {
       // If the current prefix is a valid word (meets length, ends a word, and has frequency)
-      if (prefix.length >= minLength && node.isEndOfWord) {
+      if (prefix.length >= minLength && node.end) {
         // Only add if the required letter has been used
         if (usedRequired) {
           results.push({ word: prefix, node });
@@ -71,10 +67,7 @@ export class WordFreqTrie {
     // Start DFS from the root with an empty prefix and required letter not yet used
     dfs(await this.getRoot(Array.from(validSet).join('')), '', false);
     // Return all found words
-    return results.map(({ word, node }) => ({
-      word,
-      ...getWordStats(this.metadata, node.frequency),
-    }));
+    return results.map(({ word }) => word);
   }
 
   private async getRoot(chars: string): Promise<TrieNode> {
@@ -99,56 +92,37 @@ export class WordFreqTrie {
     }
     return {
       children,
-      isEndOfWord: false,
+      end: false,
     };
   }
 
   // Find a word in the trie
-  async find(word: string, fallbackFreq = 0): Promise<WordStats> {
-    if (!word[0])
-      return {
-        word,
-        ...getWordStats(this.metadata, fallbackFreq),
-        found: false,
-      };
+  async has(word: string): Promise<boolean> {
+    if (!word[0]) {
+      return false;
+    }
 
     let current = await this.getRoot(word[0]);
     if (!current) {
-      return {
-        word,
-        ...getWordStats(this.metadata, fallbackFreq),
-        found: false,
-      };
+      return false;
     }
 
     for (const char of word.toLowerCase()) {
       if (!current.children[char]) {
-        return {
-          word,
-          ...getWordStats(this.metadata, fallbackFreq),
-          found: false,
-        };
+        return false;
       }
       current = current.children[char] as TrieNode;
     }
 
-    if (current.isEndOfWord) {
-      // Calculate percentile: percent of words with lower or equal frequency
-      return { word, ...getWordStats(this.metadata, current.frequency) };
-    } else {
-      return {
-        word,
-        ...getWordStats(this.metadata, fallbackFreq),
-        found: false,
-      };
+    if (current.end) {
+      return true;
     }
+    return false;
   }
 
   // Get all words with a given prefix
-  async getWordsWithPrefix(
-    prefix: string
-  ): Promise<Array<{ word: string; frequency: number }>> {
-    const results: Array<{ word: string; frequency: number }> = [];
+  async getWordsWithPrefix(prefix: string): Promise<string[]> {
+    const results: string[] = [];
     if (!prefix[0]) return results;
 
     let current = await this.getRoot(prefix[0]);
@@ -165,13 +139,9 @@ export class WordFreqTrie {
     return results;
   }
 
-  private collectWords(
-    node: TrieNode,
-    prefix: string,
-    results: Array<{ word: string; frequency: number }>
-  ) {
-    if (node.isEndOfWord) {
-      results.push({ word: prefix, frequency: node.frequency });
+  private collectWords(node: TrieNode, prefix: string, results: Array<string>) {
+    if (node.end) {
+      results.push(prefix);
     }
 
     for (const [char, childNode] of Object.entries(node.children)) {
@@ -182,36 +152,19 @@ export class WordFreqTrie {
   // Get statistics
   getStats() {
     return {
-      wordCount: this.metadata.wordCount,
-      totalFrequency: this.metadata.totalFrequency,
-      averageFrequency: this.metadata.totalFrequency / this.metadata.wordCount,
+      wordCount: wordFreqMetadata.wordCount,
+      totalFrequency: wordFreqMetadata.totalFrequency,
+      averageFrequency:
+        wordFreqMetadata.totalFrequency / wordFreqMetadata.wordCount,
     };
   }
 }
 
-export const BaseTrieNodeSchema = z.object({
+export const TrieNodeSchema = z.object({
   get children() {
-    return z.record(z.string(), BaseTrieNodeSchema);
+    return z.record(z.string(), TrieNodeSchema);
   },
-  isEndOfWord: z.boolean(),
+  end: z.boolean(),
 });
-
-export const NotWordNodeSchema = z.extend(BaseTrieNodeSchema, {
-  isEndOfWord: z.literal(false),
-});
-
-export const WordNodeSchema = z.extend(BaseTrieNodeSchema, {
-  frequency: z.number(),
-  articleCount: z.number(),
-  hyphenatedForms: z.array(z.string()),
-  isEndOfWord: z.literal(true),
-});
-
-export type WordNode = z.infer<typeof WordNodeSchema>;
-
-const TrieNodeSchema = z.discriminatedUnion('isEndOfWord', [
-  NotWordNodeSchema,
-  WordNodeSchema,
-]);
 
 export type TrieNode = z.infer<typeof TrieNodeSchema>;

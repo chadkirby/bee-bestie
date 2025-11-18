@@ -5,26 +5,30 @@ import { z } from 'zod/mini';
 import { type OnePuzzle } from '@lib/puzzle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateNavigation } from '@/components/DateNavigation';
-import { WordExplorer, type WordStatsRecord, type SortKey } from '@/components/WordExplorer';
-import { HistoryTab } from './HistoryTab';
+import { type WordStatsRecord, type SortKey } from '@/components/WordExplorer';
+import { PuzzleTab } from './PuzzleTab';
 import { TabDataService } from '@/services/tabDataService';
+import { getBeeScore } from '@/lib/utils.ts';
+import type { ExposureConfig } from './types';
 
 // Schema for puzzle-only response
 const PuzzleResponseSchema = z.object({
   puzzle: z.any(), // OnePuzzle will be validated by HistoryTab
 });
 
-export type ExposureConfig = {
-  startingLetters: number;
-  endingLetters: number;
-};
+const PuzzleTabNames = { words: 'words', hints: 'hints', semantics: 'semantics' } as const;
 
-type PuzzleTab = 'history' | 'hints' | 'semantics';
+type PuzzleTab = keyof typeof PuzzleTabNames;
+
+function makePuzzleTabUrl(date: string, tab: PuzzleTab, searchParams?: string): string {
+  const baseUrl = `/puzzle/${date}/${PuzzleTabNames[tab]}`;
+  return searchParams ? `${baseUrl}${searchParams}` : baseUrl;
+}
 
 function RedirectToToday() {
   const todayIso = DateTime.local().toISODate();
   if (!todayIso) return null;
-  return <Navigate to={`/puzzle/${todayIso}/history`} replace />;
+  return <Navigate to={makePuzzleTabUrl(todayIso, 'words')} replace />;
 }
 
 function PuzzlePage() {
@@ -34,31 +38,30 @@ function PuzzlePage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tab: PuzzleTab =
-    tabParam === 'hints' || tabParam === 'semantics' || tabParam === 'history'
+    Object.keys(PuzzleTabNames).includes(tabParam || '')
       ? (tabParam as PuzzleTab)
-      : 'history';
+      : PuzzleTabNames.words;
 
   const [loading, setLoading] = useState(false);
   const [loadingWordStats, setLoadingWordStats] = useState(false);
   const [puzzleData, setPuzzleData] = useState<OnePuzzle | null>(null);
   const [wordStats, setWordStats] = useState<WordStatsRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [wordStatsError, setWordStatsError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState<DateTime | null>(null);
 
-  // AbortController for cancelling pending word-stats requests
+  // Answer-masking state stored locally to avoid spoilers in shared URLs
+  const [lettersToExpose, setLettersToExpose] = useState<ExposureConfig>({
+    showAll: undefined,
+    startingLetters: 1,
+    endingLetters: 0,
+  });
+
+  // AbortController for cancelling pending words requests
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Derive sort + exposure settings from URL search params so views are shareable
+  // Derive sorting settings from URL search params so views are shareable
   const sortBy = (searchParams.get('sortBy') as SortKey) ?? 'frequency';
   const sortDirection = searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
-
-  const startParam = Number(searchParams.get('start') ?? '0');
-  const endParam = Number(searchParams.get('end') ?? '0');
-  const lettersToExpose: ExposureConfig = {
-    startingLetters: Number.isNaN(startParam) ? 0 : startParam,
-    endingLetters: Number.isNaN(endParam) ? 0 : endParam,
-  };
 
   const handleChangeSortBy = (nextSortBy: SortKey) => {
     const next = new URLSearchParams(searchParams);
@@ -74,10 +77,7 @@ function PuzzlePage() {
   };
 
   const handleLettersToExposeChange = (config: ExposureConfig) => {
-    const next = new URLSearchParams(searchParams);
-    next.set('start', String(config.startingLetters));
-    next.set('end', String(config.endingLetters));
-    setSearchParams(next);
+    setLettersToExpose(config);
   };
 
   // Fast fetch: Puzzle data only
@@ -86,7 +86,6 @@ function PuzzlePage() {
     setError(null);
     setPuzzleData(null);
     setWordStats(null); // Clear previous word stats
-    setWordStatsError(null); // Clear word stats error on new puzzle
 
     try {
       const response = await fetch(`/puzzle/${isoDate}`);
@@ -104,8 +103,8 @@ function PuzzlePage() {
 
   // Slow fetch: Word statistics only
   const fetchWordStats = async (isoDate: string) => {
-    // Only fetch word stats for history tab
-    if (tab !== 'history') return;
+    // Only fetch word stats for words tab
+    if (tab !== 'words') return;
 
     // Cancel any existing request
     if (abortControllerRef.current) {
@@ -120,7 +119,6 @@ function PuzzlePage() {
     const requestDate = isoDate;
 
     setLoadingWordStats(true);
-    setWordStatsError(null);
 
     try {
       const wordStatsResponse = await TabDataService.fetchWordStats(requestDate, abortController.signal);
@@ -132,7 +130,10 @@ function PuzzlePage() {
 
       // Use the ref-based date check instead of state
       if (abortControllerRef.current?.signal && !abortControllerRef.current.signal.aborted) {
-        setWordStats(wordStatsResponse.wordStats);
+        setWordStats(wordStatsResponse.wordStats.map((stat) => ({
+          ...stat,
+          score: getBeeScore(stat.word),
+        })));
       }
     } catch (err) {
       // Don't show error for aborted requests
@@ -140,7 +141,6 @@ function PuzzlePage() {
         return;
       }
 
-      setWordStatsError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       // Always update loading state on completion (unless aborted)
       if (!abortController.signal.aborted) {
@@ -149,7 +149,7 @@ function PuzzlePage() {
     }
   };
 
-  
+
   // When the route date changes, update state and fetch puzzle data immediately
   useEffect(() => {
     if (!date) return;
@@ -162,9 +162,9 @@ function PuzzlePage() {
     fetchPuzzle(dateTime.toISODate()!);
   }, [date]);
 
-  // When puzzle data is loaded and we're on history tab, fetch word stats
+  // When puzzle data is loaded and we're on puzzle tab, fetch word stats
   useEffect(() => {
-    if (puzzleData && tab === 'history') {
+    if (puzzleData && tab === 'words') {
       fetchWordStats(puzzleData.printDate);
     }
   }, [puzzleData, tab]);
@@ -183,8 +183,7 @@ function PuzzlePage() {
     if (!nextIso) return;
 
     // Navigate to the same tab for the new date, preserving query params
-    const search = location.search ?? '';
-    navigate(`/puzzle/${nextIso}/${tab}${search}`);
+    navigate(makePuzzleTabUrl(nextIso, tab, location.search));
   };
 
   if (!date) {
@@ -193,7 +192,7 @@ function PuzzlePage() {
 
   return (
     <div className="app">
-      <div className="mx-auto max-w-3xl px-4 mt-2">
+      <div className="mx-auto max-w-4xl px-4 mt-2">
         <h1 className="text-3xl font-bold">Bee Bestie</h1>
 
         <div className="mt-4 mb-6">
@@ -212,16 +211,16 @@ function PuzzlePage() {
 
             <nav className="flex gap-4 text-sm">
               <NavLink
-                to={`/puzzle/${date}/history${location.search ?? ''}`}
+                to={makePuzzleTabUrl(date, 'words', location.search)}
                 className={({ isActive }) =>
                   `pb-2 border-b-2 ${isActive ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground'
                   }`
                 }
               >
-                History
+                Words
               </NavLink>
               <NavLink
-                to={`/puzzle/${date}/hints${location.search ?? ''}`}
+                to={makePuzzleTabUrl(date, 'hints', location.search)}
                 className={({ isActive }) =>
                   `pb-2 border-b-2 ${isActive ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground'
                   }`
@@ -230,7 +229,7 @@ function PuzzlePage() {
                 Hints
               </NavLink>
               <NavLink
-                to={`/puzzle/${date}/semantics${location.search ?? ''}`}
+                to={makePuzzleTabUrl(date, 'semantics', location.search)}
                 className={({ isActive }) =>
                   `pb-2 border-b-2 ${isActive ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground'
                   }`
@@ -243,19 +242,18 @@ function PuzzlePage() {
         </div>
 
         {loading && !puzzleData && (
-          <HistorySkeleton />
+          <PuzzleSkeleton />
         )}
 
         {puzzleData && currentDate && (
           <div className="space-y-6">
-            {tab === 'history' && (
-              <HistoryTab
+            {tab === 'words' && (
+              <PuzzleTab
                 puzzle={puzzleData}
                 lettersToExpose={lettersToExpose}
                 onLettersToExposeChange={handleLettersToExposeChange}
                 wordStats={wordStats}
                 loadingWordStats={loadingWordStats}
-                wordStatsError={wordStatsError}
                 sortBy={sortBy}
                 sortDirection={sortDirection}
                 onChangeSortBy={handleChangeSortBy}
@@ -303,7 +301,7 @@ function PuzzleRedirect() {
   if (!date) {
     return <Navigate to="/" replace />;
   }
-  return <Navigate to={`/puzzle/${date}/history`} replace />;
+  return <Navigate to={makePuzzleTabUrl(date, 'words')} replace />;
 }
 
 function WordPage() {
@@ -312,7 +310,7 @@ function WordPage() {
 
   return (
     <div className="app">
-      <div className="mx-auto max-w-3xl px-4">
+      <div className="mx-auto max-w-4xl px-4">
         <h1>Word: {word}</h1>
         <p>Word view coming soon.</p>
       </div>
@@ -320,7 +318,7 @@ function WordPage() {
   );
 }
 
-function HistorySkeleton() {
+function PuzzleSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
       <Card>
