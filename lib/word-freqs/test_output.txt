@@ -1,0 +1,141 @@
+
+> @lib/word-freqs@1.0.0 test
+> vitest tests/phonotactic.test.ts
+
+
+[1m[44m DEV [49m[22m [34mv4.0.9 [39m[90m/Users/ckirby/repos/bee-bestie/lib/word-freqs[39m
+
+[90mstdout[2m | tests/phonotactic.test.ts[2m > [22m[2mPhonotacticScorer[2m > [22m[2mscores "dragon" as viable (real word)
+[22m[39mToy Dragon: score=-0.6736175818720085, viable=true
+
+[90mstdout[2m | tests/phonotactic.test.ts[2m > [22m[2mcan load pre-trained model[2m > [22m[2mskpout
+[22m[39mFull Skpout: viable=false, score=-10
+
+[90mstdout[2m | tests/phonotactic.test.ts[2m > [22m[2mcan generateViableWords[2m > [22m[2mgenerateViableWords
+[22m[39m[
+  "aura",
+  "argua",
+  "argu",
+  "arra",
+  "arguard",
+  "gradu",
+  "druga",
+  "adra",
+  "auduaura",
+  "dagra",
+  "agura",
+  "gradua",
+  "uradar",
+  "urar",
+  "ragr",
+  "uraaga",
+  "guara",
+  "guard",
+  "grada",
+  "gurru",
+  "urugaga",
+  "gaura",
+  "agra",
+  "urugu",
+  "gara",
+  "rudra",
+  "aggradua",
+  "arau",
+  "aurar",
+  "aguagra",
+  "arguagga",
+  "auru",
+  "garra",
+  "garru",
+  "arga",
+  "guadra",
+  "ugra",
+  "ragda",
+  "darda",
+  "udar",
+  "ardua",
+  "aurada",
+  "arduarau",
+  "dura",
+  "rugadaa",
+  "adara",
+  "rada",
+  "darga",
+  "auruga",
+  "ruad"
+]
+
+ [31m❯[39m tests/phonotactic.test.ts [2m([22m[2m12 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 1267[2mms[22m[39m
+     [32m✓[39m scores "dragon" as viable (real word)[32m 1[2mms[22m[39m
+     [32m✓[39m scores "grondo" as viable (pronounceable pseudoword)[32m 0[2mms[22m[39m
+     [32m✓[39m scores "pgrnod" as not viable (garbage)[32m 1[2mms[22m[39m
+     [32m✓[39m dragon[32m 0[2mms[22m[39m
+     [32m✓[39m pgrnod[32m 0[2mms[22m[39m
+     [32m✓[39m grondo[32m 0[2mms[22m[39m
+     [32m✓[39m occupinup[32m 0[2mms[22m[39m
+     [32m✓[39m occupprrrrgpinup[32m 0[2mms[22m[39m
+     [32m✓[39m pxdingle is not viable[32m 0[2mms[22m[39m
+     [32m✓[39m skouth[32m 0[2mms[22m[39m
+     [32m✓[39m skpout[32m 0[2mms[22m[39m
+[31m     [31m×[31m generateViableWords[39m[33m 1262[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/phonotactic.test.ts[2m > [22mcan generateViableWords[2m > [22mgenerateViableWords
+[31m[1mAssertionError[22m: expected [ 'aura', 'argua', 'argu', …(47) ] to deeply equal [ 'aura', 'auduaura', 'dagra', …(40) ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[33m@@ -1,7 +1,14 @@[39m
+[2m  [[22m
+[2m    "aura",[22m
+[31m+   "argua",[39m
+[31m+   "argu",[39m
+[31m+   "arra",[39m
+[31m+   "arguard",[39m
+[31m+   "gradu",[39m
+[31m+   "druga",[39m
+[31m+   "adra",[39m
+[2m    "auduaura",[22m
+[2m    "dagra",[22m
+[2m    "agura",[22m
+[2m    "gradua",[22m
+[2m    "uradar",[22m
+
+[36m [2m❯[22m tests/phonotactic.test.ts:[2m108:12[22m[39m
+    [90m106| [39m    assert[33m.[39m[34misArray[39m(words)[33m;[39m
+    [90m107| [39m    assert[33m.[39m[34misNotEmpty[39m(words)[33m;[39m
+    [90m108| [39m    assert[33m.[39m[34mdeepEqual[39m(words[33m,[39m [
+    [90m   | [39m           [31m^[39m
+    [90m109| [39m      [32m'aura'[39m[33m,[39m
+    [90m110| [39m      [32m'auduaura'[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m11 passed[39m[22m[90m (12)[39m
+[2m   Start at [22m 11:19:05
+[2m   Duration [22m 1.93s[2m (transform 264ms, setup 0ms, collect 581ms, tests 1.27s, environment 0ms, prepare 2ms)[22m
+
+[1m[41m FAIL [49m[22m [31mTests failed. Watching for file changes...[39m
+       [2mpress [22m[1mh[22m[2m to show help[22m[2m, [22m[2mpress [22m[1mq[22m[2m to quit[22m
+[31mCancelling test run. Press CTRL+c again to exit forcefully.
+[39m
+
+[31m⎯⎯⎯⎯[39m[1m[41m Unhandled Rejection [49m[22m[31m⎯⎯⎯⎯⎯[39m
+[31m[1mError[22m: [birpc] rpc is closed, cannot call "onCancel"[39m
+[90m [2m❯[22m _call ../../node_modules/.pnpm/vitest@4.0.9_@types+node@24.10.1_jiti@2.6.1_lightningcss@1.30.2_tsx@4.20.6/node_modules/vitest/dist/chunks/index.0kCJoeWi.js:[2m28:13[22m[39m
+[90m [2m❯[22m Proxy.sendEvent ../../node_modules/.pnpm/vitest@4.0.9_@types+node@24.10.1_jiti@2.6.1_lightningcss@1.30.2_tsx@4.20.6/node_modules/vitest/dist/chunks/index.0kCJoeWi.js:[2m104:38[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/vitest@4.0.9_@types+node@24.10.1_jiti@2.6.1_lightningcss@1.30.2_tsx@4.20.6/node_modules/vitest/dist/chunks/cli-api.D48wY175.js:[2m6672:54[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/vitest@4.0.9_@types+node@24.10.1_jiti@2.6.1_lightningcss@1.30.2_tsx@4.20.6/node_modules/vitest/dist/chunks/cli-api.D48wY175.js:[2m11695:73[22m[39m
+[90m [2m❯[22m Vitest.cancelCurrentRun ../../node_modules/.pnpm/vitest@4.0.9_@types+node@24.10.1_jiti@2.6.1_lightningcss@1.30.2_tsx@4.20.6/node_modules/vitest/dist/chunks/cli-api.D48wY175.js:[2m11695:55[22m[39m
+[90m [2m❯[22m _keypressHandler ../../node_modules/.pnpm/vitest@4.0.9_@types+node@24.10.1_jiti@2.6.1_lightningcss@1.30.2_tsx@4.20.6/node_modules/vitest/dist/chunks/cli-api.D48wY175.js:[2m12342:15[22m[39m
+[90m [2m❯[22m ReadStream.keypressHandler ../../node_modules/.pnpm/vitest@4.0.9_@types+node@24.10.1_jiti@2.6.1_lightningcss@1.30.2_tsx@4.20.6/node_modules/vitest/dist/chunks/cli-api.D48wY175.js:[2m12388:9[22m[39m
+[90m [2m❯[22m ReadStream.emit node:events:[2m519:28[22m[39m
+[90m [2m❯[22m emitKeys node:internal/readline/utils:[2m370:14[22m[39m
+
+
+
+

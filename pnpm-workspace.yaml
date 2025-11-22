@@ -13,6 +13,9 @@ catalog:
   '@types/node': ^24.10.1
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
+  compromise: ^14.14.4
+  compromise-speech: ^0.1.1
+  compromise-syllables: ^0.0.6
   lucide-react: ^0.553.0
   luxon: 3.7.2
   msgpackr: ^1.11.5

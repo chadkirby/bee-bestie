@@ -1,0 +1,13 @@
+# create the database schema
+POST http://localhost:8787/migrate
+
+###
+POST http://localhost:8787/seed
+
+###
+POST http://localhost:8787/rebuild?dryRun=true
+
+
+
+GET http://localhost:8787/status
+

@@ -1,0 +1,28 @@
+{
+  "name": "bee-bestie-initialization",
+  "main": "src/index.ts",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "compatibility_date": "2025-11-15",
+  "workers_dev": true,
+  "upload_source_maps": true,
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "BEE_PUZZLES",
+      "database_name": "bee-puzzles",
+      "database_id": "177a65ec-0efd-42b8-9ae8-ba480d275c18",
+      "remote": true
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BEE_BUCKET",
+      "bucket_name": "bee-data",
+      "remote": true
+    }
+  ]
+}

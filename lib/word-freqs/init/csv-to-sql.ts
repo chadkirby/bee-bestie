@@ -8,10 +8,10 @@ import path from 'path';
 
 // Define interfaces for our data structures
 interface WordData {
-  word: string;
-  frequency: number;
-  articleCount: number;
-  hyphenates: string[];
+  w: string;
+  f: number;
+  c: number;
+  h: string[];
 }
 
 // CSV parsing function
@@ -59,10 +59,10 @@ function parseCSV(csvContent: string): WordData[] {
       : [];
 
     data.push({
-      word,
-      frequency,
-      articleCount,
-      hyphenates,
+      w: word,
+      f: frequency,
+      c: articleCount,
+      h: hyphenates,
     });
   }
 
@@ -111,6 +111,12 @@ try {
 
   console.log('Parsing CSV data...');
   const data = parseCSV(csvContent);
+  fs.writeFileSync(
+    path.join(scriptDir, 'word-stats.json'),
+    JSON.stringify(data),
+    'utf8'
+  );
+  process.exit();
   console.log(`Parsed ${data.length} rows`);
 
   console.log('Generating SQL INSERT statements...');

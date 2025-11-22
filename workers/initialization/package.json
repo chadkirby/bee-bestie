@@ -1,0 +1,25 @@
+{
+  "name": "bee-bestie-initialization",
+  "version": "1.0.0",
+  "description": "Database initialization worker for bee-bestie puzzle data",
+  "type": "module",
+  "main": "src/index.ts",
+  "files": [
+    "src",
+    "migration.sql"
+  ],
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "migrate": "wrangler d1 execute bee-puzzles --file=migration.sql",
+    "build": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "catalog:",
+    "typescript": "catalog:",
+    "wrangler": "catalog:"
+  },
+  "dependencies": {
+    "@lib/puzzle": "workspace:*"
+  }
+}

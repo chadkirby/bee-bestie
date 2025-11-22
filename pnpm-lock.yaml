@@ -6,78 +6,24 @@ settings:
 
 catalogs:
   default:
-    '@cloudflare/workers-types':
-      specifier: 4.20251115.0
-      version: 4.20251115.0
-    '@radix-ui/react-label':
-      specifier: ^2.1.8
-      version: 2.1.8
-    '@radix-ui/react-separator':
-      specifier: ^1.1.8
-      version: 1.1.8
-    '@radix-ui/react-slot':
-      specifier: ^1.2.4
-      version: 1.2.4
-    '@tailwindcss/vite':
-      specifier: ^4.1.17
-      version: 4.1.17
-    '@types/luxon':
-      specifier: ^3.7.1
-      version: 3.7.1
-    '@types/node':
-      specifier: ^24.10.1
-      version: 24.10.1
-    class-variance-authority:
-      specifier: ^0.7.1
-      version: 0.7.1
-    clsx:
-      specifier: ^2.1.1
-      version: 2.1.1
-    lucide-react:
-      specifier: ^0.553.0
-      version: 0.553.0
-    luxon:
-      specifier: 3.7.2
-      version: 3.7.2
+    compromise:
+      specifier: ^14.14.4
+      version: 14.14.4
+    compromise-speech:
+      specifier: ^0.1.1
+      version: 0.1.1
     msgpackr:
       specifier: ^1.11.5
       version: 1.11.5
-    prettier:
-      specifier: ^3.6.2
-      version: 3.6.2
-    quick-lru:
-      specifier: 7.3.0
-      version: 7.3.0
-    react-router-dom:
-      specifier: ^7.9.6
-      version: 7.9.6
     simple-statistics:
       specifier: ^7.8.8
       version: 7.8.8
-    tailwind-merge:
-      specifier: ^3.4.0
-      version: 3.4.0
-    tailwindcss:
-      specifier: ^4.1.17
-      version: 4.1.17
     tsx:
       specifier: ^4.20.6
       version: 4.20.6
-    tw-animate-css:
-      specifier: ^1.4.0
-      version: 1.4.0
-    typescript:
-      specifier: ^5.9.3
-      version: 5.9.3
-    vite:
-      specifier: ^7.2.2
-      version: 7.2.2
     vitest:
       specifier: 4.0.9
       version: 4.0.9
-    wrangler:
-      specifier: 4.47.0
-      version: 4.47.0
     zod:
       specifier: 4.1.12
       version: 4.1.12
@@ -254,6 +200,12 @@ importers:
 
   lib/word-freqs:
     dependencies:
+      compromise:
+        specifier: 'catalog:'
+        version: 14.14.4
+      compromise-speech:
+        specifier: 'catalog:'
+        version: 0.1.1(compromise@14.14.4)
       msgpackr:
         specifier: 'catalog:'
         version: 1.11.5
@@ -289,6 +241,22 @@ importers:
       tsx:
         specifier: 'catalog:'
         version: 4.20.6
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      wrangler:
+        specifier: 'catalog:'
+        version: 4.47.0(@cloudflare/workers-types@4.20251115.0)
+
+  workers/initialization:
+    dependencies:
+      '@lib/puzzle':
+        specifier: workspace:*
+        version: link:../../lib/puzzle
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: 'catalog:'
+        version: 4.20251115.0
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -1347,6 +1315,15 @@ packages:
     resolution: {integrity: sha512-1rXeuUUiGGrykh+CeBdu5Ie7OJwinCgQY0bc7GCRxy5xVHy+moaqkpL/jqQq0MtQOeYcrqEz4abc5f0KtU7W4A==}
     engines: {node: '>=12.5.0'}
 
+  compromise-speech@0.1.1:
+    resolution: {integrity: sha512-nTT/zi0cNQXoiwnvJVl6Sm9TLE+esHmjRHISmyPw3DtiLPagpaONFKa/rY/gCgvOGemOkr3i4jOj+gG5YtdsOw==}
+    peerDependencies:
+      compromise: '>=14.0.0'
+
+  compromise@14.14.4:
+    resolution: {integrity: sha512-QdbJwronwxeqb7a5KFK/+Y5YieZ4PE1f7ai0vU58Pp4jih+soDCBMuKVbhDEPQ+6+vI3vSiG4UAAjTAXLJw1Qw==}
+    engines: {node: '>=12.0.0'}
+
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
 
@@ -1372,6 +1349,10 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
+
+  efrt@2.7.0:
+    resolution: {integrity: sha512-/RInbCy1d4P6Zdfa+TMVsf/ufZVotat5hCw3QXmWtjU+3pFEOvOQ7ibo3aIxyCJw2leIeAMjmPj+1SLJiCpdrQ==}
+    engines: {node: '>=12.0.0'}
 
   electron-to-chromium@1.5.244:
     resolution: {integrity: sha512-OszpBN7xZX4vWMPJwB9illkN/znA8M36GQqQxi6MNy9axWxhOfJyZZJtSLQCpEFLHP2xK33BiWx9aIuIEXVCcw==}
@@ -1444,6 +1425,10 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  grad-school@0.0.5:
+    resolution: {integrity: sha512-rXunEHF9M9EkMydTBux7+IryYXEZinRk6g8OBOGDBzo/qWJjhTxy86i5q7lQYpCLHN8Sqv1XX3OIOc7ka2gtvQ==}
+    engines: {node: '>=8.0.0'}
 
   is-arrayish@0.3.4:
     resolution: {integrity: sha512-m6UrgzFVUYawGBh1dUsWR5M2Clqic9RVXC/9f8ceNlv2IcO9j9J/z8UoCLPqtsPBFNzEpfR3xftohbfqDx8EQA==}
@@ -1710,6 +1695,9 @@ packages:
   stoppable@1.1.0:
     resolution: {integrity: sha512-KXDYZ9dszj6bzvnEMRYvxgeTHU74QBFL54XKtP3nyMuJ81CFYtABZ3bAzL2EdFUaEwJOBOgENyFj3R7oTzDyyw==}
     engines: {node: '>=4', npm: '>=6'}
+
+  suffix-thumb@5.0.2:
+    resolution: {integrity: sha512-I5PWXAFKx3FYnI9a+dQMWNqTxoRt6vdBdb0O+BJ1sxXCWtSoQCusc13E58f+9p4MYx/qCnEMkD5jac6K2j3dgA==}
 
   supports-color@10.2.2:
     resolution: {integrity: sha512-SS+jx45GF1QjgEXQx4NJZV9ImqmO2NPz5FNsIHrsDjh2YsHnawpan7SNQ1o8NuhrbHZy9AZhIoCUiCeaW/C80g==}
@@ -2778,6 +2766,16 @@ snapshots:
       color-convert: 2.0.1
       color-string: 1.9.1
 
+  compromise-speech@0.1.1(compromise@14.14.4):
+    dependencies:
+      compromise: 14.14.4
+
+  compromise@14.14.4:
+    dependencies:
+      efrt: 2.7.0
+      grad-school: 0.0.5
+      suffix-thumb: 5.0.2
+
   convert-source-map@2.0.0: {}
 
   cookie@1.0.2: {}
@@ -2791,6 +2789,8 @@ snapshots:
   defu@6.1.4: {}
 
   detect-libc@2.1.2: {}
+
+  efrt@2.7.0: {}
 
   electron-to-chromium@1.5.244: {}
 
@@ -2890,6 +2890,8 @@ snapshots:
   glob-to-regexp@0.4.1: {}
 
   graceful-fs@4.2.11: {}
+
+  grad-school@0.0.5: {}
 
   is-arrayish@0.3.4: {}
 
@@ -3176,6 +3178,8 @@ snapshots:
   std-env@3.10.0: {}
 
   stoppable@1.1.0: {}
+
+  suffix-thumb@5.0.2: {}
 
   supports-color@10.2.2: {}
 

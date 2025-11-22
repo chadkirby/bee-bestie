@@ -32,6 +32,8 @@
   "keywords": [],
   "author": "Chad Kirby",
   "dependencies": {
+    "compromise": "catalog:",
+    "compromise-speech": "catalog:",
     "msgpackr": "catalog:",
     "simple-statistics": "catalog:",
     "zod": "catalog:"
