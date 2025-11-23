@@ -67,8 +67,8 @@ export function Teletype({ center, outer, forbiddenWords = [], className }: Tele
     let animationFrameId: number;
     let lastTime = 0;
     const charDelay = 50; // ms per character
-    const wordPauseDelay = 150; // ms to pause at full word
-    const backspaceDelay = 30; // ms per backspace (faster than typing)
+    const wordPauseDelay = 200; // ms to pause at full word
+    const backspaceDelay = 50; // ms per backspace (faster than typing)
 
     let state: 'typing' | 'waiting' | 'backspacing' = 'typing';
 
@@ -124,6 +124,7 @@ export function Teletype({ center, outer, forbiddenWords = [], className }: Tele
     let waitStartTime = 0;
 
     const animate = (time: number) => {
+      const jitter = Math.random() * 50;
       if (!lastTime) lastTime = time;
 
       if (isPausedRef.current) {
@@ -133,7 +134,7 @@ export function Teletype({ center, outer, forbiddenWords = [], className }: Tele
       }
 
       if (state === 'typing') {
-        if (time - lastTime > charDelay) {
+        if (time - lastTime > charDelay + jitter) {
           lastTime = time;
           charIndex++;
           setCurrentWord(targetWord.slice(0, charIndex));
@@ -144,12 +145,12 @@ export function Teletype({ center, outer, forbiddenWords = [], className }: Tele
           }
         }
       } else if (state === 'waiting') {
-        if (time - waitStartTime > wordPauseDelay) {
+        if (time - waitStartTime > wordPauseDelay + jitter) {
           state = 'backspacing';
           lastTime = time;
         }
       } else if (state === 'backspacing') {
-        if (time - lastTime > backspaceDelay) {
+        if (time - lastTime > backspaceDelay + jitter) {
           lastTime = time;
           charIndex--;
           setCurrentWord(targetWord.slice(0, charIndex));
