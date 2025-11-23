@@ -10,6 +10,10 @@ import { PuzzleTab } from './PuzzleTab';
 import { TabDataService } from '@/services/tabDataService';
 import { getBeeScore } from '@/lib/utils.ts';
 import type { ExposureConfig } from './types';
+import { hc } from 'hono/client';
+import type { AppType } from '../worker/index';
+
+const client = hc<AppType>('/');
 
 // Schema for puzzle-only response
 const PuzzleResponseSchema = z.object({
@@ -167,7 +171,9 @@ function PuzzlePage() {
     setWordStats(null); // Clear previous word stats
 
     try {
-      const response = await fetch(`/puzzle/${isoDate}`);
+      const response = await client.puzzle[':date'].$get({
+        param: { date: isoDate },
+      });
       if (!response.ok) {
         if (response.status === 404) {
           setError({ type: 'NOT_FOUND', message: 'Puzzle not found' });

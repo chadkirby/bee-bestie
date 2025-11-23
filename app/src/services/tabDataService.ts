@@ -1,4 +1,6 @@
 import { z } from 'zod/mini';
+import { hc } from 'hono/client';
+import type { AppType } from '../worker/index';
 
 // Schema for word-stats response
 const WordStatsResponseSchema = z.object({
@@ -16,6 +18,8 @@ const WordStatsResponseSchema = z.object({
 
 export type WordStatsResponse = z.infer<typeof WordStatsResponseSchema>;
 
+const client = hc<AppType>('/');
+
 /**
  * Tab data fetchers - reusable functions for fetching tab-specific data
  */
@@ -27,9 +31,12 @@ export class TabDataService {
     puzzleDate: string,
     signal: AbortSignal
   ): Promise<WordStatsResponse> {
-    const response = await fetch(`/puzzle/${puzzleDate}/word-stats`, {
-      signal,
-    });
+    const response = await client.puzzle[':date']['word-stats'].$get(
+      {
+        param: { date: puzzleDate },
+      },
+      { init: { signal } }
+    );
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -43,6 +50,7 @@ export class TabDataService {
    */
   static async fetchHints(puzzleDate: string, signal: AbortSignal) {
     // This would be implemented when we create the hints endpoint
+    // Placeholder for now as the endpoint doesn't exist in the worker yet
     const response = await fetch(`/puzzle/${puzzleDate}/hints`, {
       signal,
     });
@@ -59,6 +67,7 @@ export class TabDataService {
    */
   static async fetchWordSemantics(puzzleDate: string, signal: AbortSignal) {
     // This would be implemented when we create the semantics endpoint
+    // Placeholder for now as the endpoint doesn't exist in the worker yet
     const response = await fetch(`/puzzle/${puzzleDate}/semantics`, {
       signal,
     });

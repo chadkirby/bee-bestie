@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "test": "vitest --run",
+    "test:watch": "vitest",
     "build": "vite build",
     "preview": "npm run build && vite preview",
     "deploy": "npm run build && wrangler deploy"

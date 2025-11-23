@@ -12,13 +12,13 @@ describe('Worker Routes', () => {
     expect(response.status).toBe(404);
   });
 
-  it('GET /word returns 400 if word param is missing', async () => {
+  it('GET /word returns 404 if word param is missing', async () => {
     const request = new Request('http://example.com/word');
     const ctx = createExecutionContext();
     const response = await worker.fetch(request, env, ctx);
     await waitOnExecutionContext(ctx);
-    expect(response.status).toBe(400);
-    expect(await response.text()).toBe('Missing word parameter');
+    expect(response.status).toBe(404);
+    expect(await response.text()).toBe('404 Not Found');
   });
 
   it('GET /word returns 200 with dates for valid word', async () => {
@@ -26,7 +26,7 @@ describe('Worker Routes', () => {
     // In a real integration test, we might want to seed the DB or mock it.
     // For now, we assume the DB binding is available via `env`.
     // If the DB is empty, it should return empty dates list.
-    const request = new Request('http://example.com/word?word=hello');
+    const request = new Request('http://example.com/word/hello');
     const ctx = createExecutionContext();
     const response = await worker.fetch(request, env, ctx);
     await waitOnExecutionContext(ctx);

@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { PhonotacticScorer } from '@lib/word-freqs/phonotactic';
 import { Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { hc } from 'hono/client';
+import type { AppType } from '../worker/index';
+
+const client = hc<AppType>('/');
 
 interface TeletypeProps {
   center: string;
@@ -24,7 +28,9 @@ export function Teletype({ center, outer, forbiddenWords = [], className }: Tele
 
     async function loadModel() {
       try {
-        const res = await fetch(`/puzzle/${pool}/phonotactic`);
+        const res = await client.puzzle[':pool'].phonotactic.$get({
+          param: { pool },
+        });
         if (!res.ok) throw new Error('Failed to load model');
 
         const modelData = await res.json();

@@ -1,4 +1,3 @@
-/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { cloudflare } from '@cloudflare/vite-plugin';
@@ -11,13 +10,6 @@ export default defineConfig({
     alias: {
       playwright: '@cloudflare/playwright',
       '@': path.resolve(import.meta.dirname, './src'),
-    },
-  },
-  test: {
-    poolOptions: {
-      workers: {
-        wrangler: { configPath: './wrangler.jsonc' },
-      },
     },
   },
 });

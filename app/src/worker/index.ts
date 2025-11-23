@@ -5,89 +5,83 @@ import { z } from 'zod/mini';
 import { getWordStats } from '@lib/word-freqs';
 import { PhonotacticScorer } from '@lib/word-freqs/phonotactic';
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env }>()
 
-// Phonotactic model endpoint
-app.get('/puzzle/:pool/phonotactic', async (c) => {
-  const pool = c.req.param('pool');
+  // Phonotactic model endpoint
+  .get('/puzzle/:pool/phonotactic', async (c) => {
+    const pool = c.req.param('pool');
 
-  // Validation: pool must be 7 letters
-  if (!/^[a-z]{7}$/i.test(pool)) {
-    // If it doesn't match, it might be a date, but this route is specific to phonotactic
-    // However, the original code had a check: if (param && /^[a-z]{7}$/i.test(param) && parts[3] === 'phonotactic')
-    // So if it's not 7 letters, it wouldn't match this route in a strict sense if we use regex in route,
-    // but Hono doesn't support regex in param easily without middleware or validator.
-    // For now, we'll just return 404 or proceed.
-    // Actually, if the user requests /puzzle/2025-11-15/phonotactic, it might match this if we aren't careful.
-    // But the original code only handled phonotactic if param was 7 chars.
-    // Let's keep the validation inside.
-    return c.notFound();
-  }
+    // Validation: pool must be 7 letters
+    if (!/^[a-z]{7}$/i.test(pool)) {
+      return c.notFound();
+    }
 
-  try {
-    // Load the full model (this might be cached if the worker stays warm)
-    const scorer = await PhonotacticScorer.load();
+    try {
+      // Load the full model (this might be cached if the worker stays warm)
+      const scorer = await PhonotacticScorer.load();
 
-    // Filter for the specific pool
-    const filtered = scorer.filterModel(pool);
+      // Filter for the specific pool
+      const filtered = scorer.filterModel(pool);
 
-    return c.json(filtered, 200, {
-      'Cache-Control': 'public, max-age=86400', // Cache for 1 day
-    });
-  } catch (error) {
-    console.error('Error generating phonotactic model:', error);
-    return c.text('Error generating model', 500);
-  }
-});
+      return c.json(filtered, 200, {
+        'Cache-Control': 'public, max-age=86400', // Cache for 1 day
+      });
+    } catch (error) {
+      console.error('Error generating phonotactic model:', error);
+      return c.text('Error generating model', 500);
+    }
+  })
 
-// Word statistics endpoint
-app.get('/puzzle/:date/word-stats', async (c) => {
-  const dateParam = c.req.param('date');
-  const date = DateTime.fromFormat(dateParam, 'yyyy-MM-dd');
+  // Word statistics endpoint
+  .get('/puzzle/:date/word-stats', async (c) => {
+    const dateParam = c.req.param('date');
+    const date = DateTime.fromFormat(dateParam, 'yyyy-MM-dd');
 
-  if (!date.isValid) {
-    return c.text('Invalid date format', 400);
-  }
+    if (!date.isValid) {
+      return c.text('Invalid date format', 400);
+    }
 
-  try {
-    return await handleWordStats(c.env, date);
-  } catch (error) {
-    return c.text('Error fetching puzzle data', 500);
-  }
-});
+    try {
+      return await handleWordStats(c.env, date);
+    } catch (error) {
+      return c.text('Error fetching puzzle data', 500);
+    }
+  })
 
-// Puzzle endpoint
-app.get('/puzzle/:date', async (c) => {
-  const dateParam = c.req.param('date');
-  const date = DateTime.fromFormat(dateParam, 'yyyy-MM-dd');
+  // Puzzle endpoint
+  .get('/puzzle/:date', async (c) => {
+    const dateParam = c.req.param('date');
+    const date = DateTime.fromFormat(dateParam, 'yyyy-MM-dd');
 
-  if (!date.isValid) {
-    return c.text('Invalid date format', 400);
-  }
+    if (!date.isValid) {
+      return c.text('Invalid date format', 400);
+    }
 
-  try {
-    return await handlePuzzle(c.env, date);
-  } catch (error) {
-    return c.text('Error fetching puzzle data', 500);
-  }
-});
+    try {
+      return await handlePuzzle(c.env, date);
+    } catch (error) {
+      return c.text('Error fetching puzzle data', 500);
+    }
+  })
 
-// Word lookup endpoint
-app.get('/word', async (c) => {
-  const wordParam = c.req.query('word');
-  if (!wordParam) {
-    return c.text('Missing word parameter', 400);
-  }
+  // Word lookup endpoint
+  .get('/word/:word', async (c) => {
+    const wordParam = c.req.param('word');
+    console.log('wordParam', wordParam);
+    if (!wordParam) {
+      return c.text('Missing word parameter', 400);
+    }
 
-  try {
-    const dbMgr = getDbManager(c.env.BEE_PUZZLES);
-    const dates = await dbMgr.getDatesForWord(wordParam);
-    return c.json({ word: wordParam, dates });
-  } catch (error) {
-    return c.text('Error fetching word data', 500);
-  }
-});
+    try {
+      const dbMgr = getDbManager(c.env.BEE_PUZZLES);
+      const dates = await dbMgr.getDatesForWord(wordParam);
+      return c.json({ word: wordParam, dates });
+    } catch (error) {
+      return c.text('Error fetching word data', 500);
+    }
+  });
 
+export type AppType = typeof app;
 export default app;
 
 async function loadJSON<T extends z.ZodMiniType<any>>(
