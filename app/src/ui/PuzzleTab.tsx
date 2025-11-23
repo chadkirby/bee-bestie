@@ -67,32 +67,41 @@ export function PuzzleTab({
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-3">
-            <CardTitle className="text-base font-semibold">
+        <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+          {/* Left Column: Puzzle Info */}
+          <div className="flex flex-col gap-6 flex-1">
+            <CardTitle className="text-base font-semibold text-center sm:text-left">
               {DateTime.fromISO(puzzle.printDate).toFormat('EEEE')}, {puzzle.displayDate}
             </CardTitle>
-            <div className="flex items-center justify-center gap-6 sm:justify-start">
-              <div className="scale-90 sm:scale-100">
-                <LetterGrid
-                  centerLetter={puzzle.centerLetter.toUpperCase()}
-                  outerLetters={puzzle.outerLetters.map((letter) => letter.toUpperCase())}
-                />
+
+            <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:justify-start sm:gap-8">
+              {/* Grid and Score Group */}
+              <div className="flex items-center gap-6">
+                <div className="scale-90 sm:scale-100">
+                  <LetterGrid
+                    centerLetter={puzzle.centerLetter.toUpperCase()}
+                    outerLetters={puzzle.outerLetters.map((letter) => letter.toUpperCase())}
+                  />
+                </div>
+                <div className="flex flex-col items-center justify-center pt-2">
+                  <ScoringSummary totalPoints={totalPoints} />
+                </div>
               </div>
-              <div className="flex flex-col items-center">
-                <ScoringSummary totalPoints={totalPoints} />
-              </div>
-              <div className="mb-6">
+
+              {/* Teletype - Centered on mobile, left-aligned on desktop if space permits */}
+              <div className="w-full max-w-[280px] sm:w-auto sm:max-w-none sm:pt-4">
                 <Teletype
                   center={puzzle.centerLetter}
                   outer={puzzle.outerLetters.join('')}
                   forbiddenWords={puzzle.answers}
-                  className="w-64 mx-auto"
+                  className="w-full"
                 />
               </div>
             </div>
           </div>
-          <div className="sm:w-64">
+
+          {/* Right Column: Controls */}
+          <div className="w-full md:w-64 md:pt-8">
             <ExposureControls
               lettersToExpose={lettersToExpose}
               onLettersToExposeChange={onLettersToExposeChange}

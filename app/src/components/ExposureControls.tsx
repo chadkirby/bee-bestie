@@ -57,14 +57,14 @@ export function ExposureControls({ lettersToExpose, onLettersToExposeChange }: E
     label: string;
     disabled?: boolean;
   }) => (
-    <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
+    <div className="flex items-center justify-between gap-2 rounded-md border p-1.5 shadow-sm">
+      <span className="text-xs font-medium pl-1">{label}</span>
       <div className="flex items-center gap-1">
         <Button
           type="button"
-          variant="outline"
-          size="sm"
-          className="h-7 w-7 p-0"
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
           onClick={() => onChange(value - 1)}
           disabled={disabled || value <= (label === 'Starting' ? 0 : 0)}
         >
@@ -72,14 +72,14 @@ export function ExposureControls({ lettersToExpose, onLettersToExposeChange }: E
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
           </svg>
         </Button>
-        <div className="w-8 text-center text-sm font-mono">
+        <div className="w-4 text-center text-xs font-mono">
           {disabled ? '∞' : value}
         </div>
         <Button
           type="button"
-          variant="outline"
-          size="sm"
-          className="h-7 w-7 p-0"
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
           onClick={() => onChange(value + 1)}
           disabled={disabled || value >= 10}
         >
@@ -92,14 +92,14 @@ export function ExposureControls({ lettersToExpose, onLettersToExposeChange }: E
   );
 
   return (
-    <div className="space-y-3 text-xs">
-      <div className="flex items-center justify-between">
+    <div className="space-y-2 text-xs">
+      <div className="flex items-center justify-between mb-2">
         <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Answer masking
         </div>
         <Button
           type="button"
-          variant={isShowAll ? "default" : "outline"}
+          variant={isShowAll ? "secondary" : "ghost"}
           size="sm"
           className="h-6 px-2 text-xs"
           onClick={handleShowAll}
@@ -108,17 +108,17 @@ export function ExposureControls({ lettersToExpose, onLettersToExposeChange }: E
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2">
         <NumberSpinner
           value={startingLetters}
           onChange={handleStartingLettersChange}
-          label="Starting"
+          label="Start"
           disabled={isShowAll}
         />
         <NumberSpinner
           value={endingLetters}
           onChange={handleEndingLettersChange}
-          label="Ending"
+          label="End"
           disabled={isShowAll}
         />
       </div>
