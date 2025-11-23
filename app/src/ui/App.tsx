@@ -159,10 +159,6 @@ function PuzzlePage() {
     setSearchParams(next);
   };
 
-  const handleLettersToExposeChange = (config: ExposureConfig) => {
-    setLettersToExpose(config);
-  };
-
   // Fast fetch: Puzzle data only
   const fetchPuzzle = async (isoDate: string) => {
     setLoading(true);
@@ -344,7 +340,7 @@ function PuzzlePage() {
                 <PuzzleTab
                   puzzle={puzzleData}
                   lettersToExpose={lettersToExpose}
-                  onLettersToExposeChange={handleLettersToExposeChange}
+                  onLettersToExposeChange={setLettersToExpose}
                   wordStats={wordStats}
                   loadingWordStats={loadingWordStats}
                   sortBy={sortBy}

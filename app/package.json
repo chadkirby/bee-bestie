@@ -31,6 +31,7 @@
     "@lib/word-freqs": "workspace:*",
     "@radix-ui/react-label": "catalog:",
     "@radix-ui/react-separator": "catalog:",
+    "@radix-ui/react-slider": "catalog:",
     "@radix-ui/react-slot": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "class-variance-authority": "catalog:",

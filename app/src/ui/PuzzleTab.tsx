@@ -2,8 +2,8 @@ import { DateTime } from 'luxon';
 import { type OnePuzzle } from '@lib/puzzle';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LetterGrid } from '@/components/LetterGrid';
-import { ExposureControls } from '@/components/ExposureControls';
-import { WordExplorer, type WordStatsRecord, type BasicWordRecord, type WordRecord, type SortKey } from '@/components/WordExplorer';
+import { TableControls } from '@/components/TableControls';
+import { WordExplorer, type WordStatsRecord, type WordRecord, type SortKey } from '@/components/WordExplorer';
 import type { ExposureConfig, OnLettersToExposeChange, OnChangeSortBy, OnToggleSortDirection } from './types';
 import { getBeeScore } from '@/lib/utils.ts';
 import { Badge } from '@/components/ui/badge';
@@ -67,7 +67,7 @@ export function PuzzleTab({
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           {/* Left Column: Puzzle Info */}
           <div className="flex flex-col gap-6 flex-1">
             <CardTitle className="text-base font-semibold text-center sm:text-left">
@@ -94,30 +94,29 @@ export function PuzzleTab({
                   center={puzzle.centerLetter}
                   outer={puzzle.outerLetters.join('')}
                   forbiddenWords={puzzle.answers}
-                  className="w-full"
+                  // needs a fixed with so the play/pause button doesn't move as the text changes
+                  className="w-40 mx-auto"
                 />
               </div>
             </div>
           </div>
-
-          {/* Right Column: Controls */}
-          <div className="w-full md:w-64 md:pt-8">
-            <ExposureControls
-              lettersToExpose={lettersToExpose}
-              onLettersToExposeChange={onLettersToExposeChange}
-            />
-          </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        <TableControls
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onChangeSortBy={onChangeSortBy}
+          onToggleSortDirection={onToggleSortDirection}
+          lettersToExpose={lettersToExpose}
+          onLettersToExposeChange={onLettersToExposeChange}
+        />
         <WordExplorer
           stats={progressiveWordList}
           lettersToExpose={lettersToExpose}
           puzzleDateIso={puzzle.printDate}
           sortBy={sortBy}
           sortDirection={sortDirection}
-          onChangeSortBy={onChangeSortBy}
-          onToggleSortDirection={onToggleSortDirection}
           loadingWordStats={loadingWordStats}
         />
       </CardContent>

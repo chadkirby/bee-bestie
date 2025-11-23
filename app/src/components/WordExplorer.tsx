@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import { DateTime } from 'luxon';
 import { AnswerItem } from '@/components/AnswerItem';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import type { ExposureConfig, OnChangeSortBy, OnToggleSortDirection } from '@/ui/types';
+import type { ExposureConfig } from '@/ui/types';
 
 export type WordStatsRecord = {
   word: string;
@@ -73,8 +72,6 @@ interface WordExplorerProps {
   puzzleDateIso: string;
   sortBy: SortKey;
   sortDirection: 'asc' | 'desc';
-  onChangeSortBy: OnChangeSortBy;
-  onToggleSortDirection: OnToggleSortDirection;
   loadingWordStats?: boolean;
 }
 
@@ -115,8 +112,6 @@ export function WordExplorer({
   puzzleDateIso,
   sortBy,
   sortDirection,
-  onChangeSortBy,
-  onToggleSortDirection,
   loadingWordStats = false,
 }: WordExplorerProps) {
 
@@ -188,34 +183,6 @@ export function WordExplorer({
   return (
     <div className="space-y-3">
       {/* Compact sort controls */}
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm">
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-muted-foreground">Sort</span>
-          <select
-            id="sort-by"
-            className="h-7 rounded-md border bg-background px-2 text-xs"
-            value={sortBy}
-            onChange={(event) => onChangeSortBy(event.target.value as SortKey)}
-          >
-            {SORT_CONFIGS.map(({ key, label }) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-            <option value="word">Word</option>
-          </select>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-7 px-2 text-xs"
-          onClick={onToggleSortDirection}
-        >
-          {sortDirection === 'desc' ? '↓ Desc' : '↑ Asc'}
-        </Button>
-      </div>
-
       <div className="space-y-1.5">
         {sortedStats.map(stat => (
           <div
