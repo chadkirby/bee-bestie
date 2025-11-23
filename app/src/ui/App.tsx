@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { DateTime } from 'luxon';
 import { Routes, Route, Navigate, NavLink, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { z } from 'zod/mini';
@@ -25,10 +25,93 @@ function makePuzzleTabUrl(date: string, tab: PuzzleTab, searchParams?: string): 
   return searchParams ? `${baseUrl}${searchParams}` : baseUrl;
 }
 
+function getLatestAvailableDate(): DateTime {
+  // Puzzle releases at 3:00 AM ET, but worker runs at 3:01-3:03 AM ET.
+  // We use 3:05 AM as the "available" time to be safe.
+  return DateTime.now().setZone('America/New_York').minus({ hours: 3, minutes: 5 }).startOf('day');
+}
+
 function RedirectToToday() {
-  const todayIso = DateTime.local().toISODate();
-  if (!todayIso) return null;
-  return <Navigate to={makePuzzleTabUrl(todayIso, 'words')} replace />;
+  const latestIso = getLatestAvailableDate().toISODate();
+  if (!latestIso) return null;
+  return <Navigate to={makePuzzleTabUrl(latestIso, 'words')} replace />;
+}
+
+function PuzzleNotFound({ date }: { date: DateTime }) {
+  const [timeLeft, setTimeLeft] = useState<string | null>(null);
+
+  // Construct the release time strictly based on the date string in NY timezone
+  const isoDate = date.toISODate();
+  const releaseTime = useMemo(() => {
+    if (!isoDate) return null;
+    return DateTime.fromISO(isoDate, { zone: 'America/New_York' })
+      .set({ hour: 3, minute: 5, second: 0, millisecond: 0 });
+  }, [isoDate]);
+
+  useEffect(() => {
+    if (!releaseTime) return;
+
+    const now = DateTime.now().setZone('America/New_York');
+
+    if (now < releaseTime) {
+      const updateTimer = () => {
+        const now = DateTime.now().setZone('America/New_York');
+        const diff = releaseTime.diff(now, ['hours', 'minutes', 'seconds']);
+        if (diff.as('milliseconds') > 0) {
+          setTimeLeft(diff.toFormat("h'h' m'm' s's'"));
+        } else {
+          setTimeLeft(null);
+          // Refresh page when time is up
+          window.location.reload();
+        }
+      };
+
+      updateTimer();
+      const interval = setInterval(updateTimer, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [releaseTime]);
+
+  const isFuture = date > getLatestAvailableDate();
+
+  return (
+    <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/20">
+      <CardHeader>
+        <CardTitle className="text-orange-800 dark:text-orange-200">
+          Puzzle Not Found
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="text-orange-700 dark:text-orange-300">
+        <p className="mb-4">
+          We couldn't find a puzzle for {date.toLocaleString(DateTime.DATE_FULL)}.
+        </p>
+
+        {isFuture && timeLeft && releaseTime ? (
+          <div className="mb-4">
+            <p className="font-semibold">This puzzle hasn't been released yet!</p>
+            <p className="text-sm text-muted-foreground mt-1 mb-2">
+              Expected release: 3:05 AM ET ({releaseTime.toLocal().toLocaleString(DateTime.TIME_SIMPLE)} your time)
+            </p>
+            <p>It will be available in approximately:</p>
+            <p className="text-2xl font-bold mt-2 font-mono">{timeLeft}</p>
+          </div>
+        ) : (
+          <p>
+            It might be from the future, or we just haven't gotten around to it yet.
+          </p>
+        )}
+
+        <div className="mt-6">
+          <NavLink
+            to="/"
+            className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+          >
+            Go to Today's Puzzle
+          </NavLink>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function PuzzlePage() {
@@ -46,7 +129,7 @@ function PuzzlePage() {
   const [loadingWordStats, setLoadingWordStats] = useState(false);
   const [puzzleData, setPuzzleData] = useState<OnePuzzle | null>(null);
   const [wordStats, setWordStats] = useState<WordStatsRecord[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ type: 'NOT_FOUND' | 'GENERIC'; message: string } | null>(null);
   const [currentDate, setCurrentDate] = useState<DateTime | null>(null);
 
   // Answer-masking state stored locally to avoid spoilers in shared URLs
@@ -90,12 +173,16 @@ function PuzzlePage() {
     try {
       const response = await fetch(`/puzzle/${isoDate}`);
       if (!response.ok) {
+        if (response.status === 404) {
+          setError({ type: 'NOT_FOUND', message: 'Puzzle not found' });
+          return;
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const puzzleResponse = PuzzleResponseSchema.parse(await response.json());
       setPuzzleData(puzzleResponse.puzzle);
     } catch (err) {
-      setError(err instanceof Error ? err.stack! : 'An error occurred');
+      setError({ type: 'GENERIC', message: err instanceof Error ? err.message : 'An error occurred' });
     } finally {
       setLoading(false);
     }
@@ -155,8 +242,10 @@ function PuzzlePage() {
     if (!date) return;
     const dateTime = DateTime.fromISO(date).startOf('day');
     if (!dateTime.isValid) {
-      setError('Invalid date');
+      if (!dateTime.isValid) {
+        setError({ type: 'GENERIC', message: 'Invalid date' });
       return;
+    }
     }
     setCurrentDate(dateTime);
     fetchPuzzle(dateTime.toISODate()!);
@@ -204,6 +293,7 @@ function PuzzlePage() {
               {currentDate && (
                 <DateNavigation
                   currentDate={currentDate}
+                  latestAvailableDate={getLatestAvailableDate()}
                   onDateChange={handleDateChange}
                 />
               )}
@@ -290,9 +380,21 @@ function PuzzlePage() {
         )}
 
         {error && (
-          <div className="error">
-            <h2>Something went wrong</h2>
-            <p>{error}</p>
+          <div className="mt-8">
+            {error.type === 'NOT_FOUND' ? (
+              <PuzzleNotFound date={currentDate || DateTime.now()} />
+            ) : (
+              <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20">
+                <CardHeader>
+                  <CardTitle className="text-red-800 dark:text-red-200">
+                    Something went wrong
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-red-700 dark:text-red-300">
+                  <p>{error.message}</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
       </div>
