@@ -17,6 +17,10 @@
     "./word-stats": {
       "import": "./dist/word-stats.js",
       "types": "./dist/word-stats.d.ts"
+    },
+    "./phonotactic": {
+      "import": "./dist/phonotactic.js",
+      "types": "./dist/phonotactic.d.ts"
     }
   },
   "files": [

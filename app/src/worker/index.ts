@@ -10,7 +10,18 @@ export default {
     // New progressive loading endpoints
     if (url.pathname.startsWith('/puzzle/')) {
       const parts = url.pathname.split('/');
-      const dateParam = parts[2]; // /puzzle/2025-11-15
+      // parts[0] = '', parts[1] = 'puzzle', parts[2] = pool or date
+
+      // Check if parts[2] looks like a pool (7 letters) or a date
+      const param = parts[2];
+
+      // /puzzle/:pool/phonotactic
+      if (param && /^[a-z]{7}$/i.test(param) && parts[3] === 'phonotactic') {
+        return await handlePhonotactic(param);
+      }
+
+      // Existing date-based routes
+      const dateParam = param; // /puzzle/2025-11-15
 
       if (!dateParam) {
         return new Response('Missing date parameter', { status: 400 });
@@ -127,4 +138,27 @@ async function handleWordStats(env: Env, date: DateTime) {
   return new Response(JSON.stringify({ wordStats }), {
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+// Phonotactic model endpoint
+import { PhonotacticScorer } from '@lib/word-freqs/phonotactic';
+
+async function handlePhonotactic(pool: string) {
+  try {
+    // Load the full model (this might be cached if the worker stays warm)
+    const scorer = await PhonotacticScorer.load();
+
+    // Filter for the specific pool
+    const filtered = scorer.filterModel(pool);
+
+    return new Response(JSON.stringify(filtered), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=86400', // Cache for 1 day
+      },
+    });
+  } catch (error) {
+    console.error('Error generating phonotactic model:', error);
+    return new Response('Error generating model', { status: 500 });
+  }
 }

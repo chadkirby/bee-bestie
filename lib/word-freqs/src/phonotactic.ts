@@ -5,6 +5,11 @@ nlp.extend(plugin);
 
 type Transitions = Record<string, Record<string, number>>;
 
+type ModelData = {
+  charTransitions: Transitions;
+  syllableBigrams: Transitions;
+};
+
 export class PhonotacticScorer {
   // Character transitions within syllables
   private charTransitions: Transitions = {};
@@ -177,50 +182,76 @@ export class PhonotacticScorer {
     const poolSet = new Set(pool.split(''));
     poolSet.add(center);
 
-    const validLettersPattern = new RegExp(
-      `^[${Array.from(poolSet).join('')}^$]+$`
-    );
+    // 1. Pre-compute valid transitions
+    // Map<currentSyllable, validNextSyllables[]>
+    const validTransitions = new Map<string, string[]>();
 
-    // Pre-filter transitions to avoid repeated checks?
-    // Actually, given the graph size, checking on the fly is probably fine for now.
-    // But we can optimize if needed.
+    // Helper to check if a syllable is valid for this pool
+    const isValidSyllable = (s: string) => {
+      if (s === '$$') return true;
+      for (const char of s) {
+        if (!poolSet.has(char)) return false;
+      }
+      return true;
+    };
 
-    // Stack for DFS: [currentSyllable, currentWordSyllables[]]
-    const stack: [string, string[]][] = [['^^', []]];
+    for (const [current, nextMap] of Object.entries(this.syllableBigrams)) {
+      // We only care about 'current' if it's valid (or start token)
+      if (current !== '^^' && !isValidSyllable(current)) continue;
+
+      const validNext: string[] = [];
+      for (const next of Object.keys(nextMap)) {
+        if (isValidSyllable(next)) {
+          validNext.push(next);
+        }
+      }
+      if (validNext.length > 0) {
+        validTransitions.set(current, validNext);
+      }
+    }
+
+    // Stack for DFS: [currentSyllable, currentLength, hasCenter, syllableList]
+    // We track length numerically to avoid joining strings constantly.
+    // We track hasCenter boolean to avoid checking it at the end.
+    const stack: [string, number, boolean, string[]][] = [['^^', 0, false, []]];
 
     const maxAdjacentIdenticalSyllables = 2;
 
     while (stack.length > 0) {
-      const [currentSyllable, currentWordSyllables] = stack.pop()!;
-      const currentWord = currentWordSyllables.join('');
+      const [currentSyllable, currentLen, hasCenter, currentWordSyllables] =
+        stack.pop()!;
 
-      const nextSyllablesMap = this.syllableBigrams[currentSyllable];
-      if (!nextSyllablesMap) continue;
-
-      const candidates = Object.keys(nextSyllablesMap).filter((s) =>
-        validLettersPattern.test(s)
-      );
+      const candidates = validTransitions.get(currentSyllable);
+      if (!candidates) continue;
 
       for (const next of candidates) {
         if (next === '$$') {
           // Check if word is valid
-          if (currentWord.length >= minLen && currentWord.includes(center)) {
-            yield currentWord;
+          if (currentLen >= minLen && hasCenter) {
+            yield currentWordSyllables.join('');
           }
           continue;
         }
 
-        if (`${currentWord}${next}`.length > maxLen) continue;
+        const nextLen = currentLen + next.length;
+        if (nextLen > maxLen) continue;
+
         // Check for too many adjacent identical syllables
         if (
           currentWordSyllables.length >= maxAdjacentIdenticalSyllables &&
-          currentWordSyllables
-            .slice(-maxAdjacentIdenticalSyllables)
-            .every((s) => s === next)
+          currentWordSyllables[currentWordSyllables.length - 1] === next &&
+          currentWordSyllables[currentWordSyllables.length - 2] === next
         ) {
           continue;
         }
-        stack.push([next, [...currentWordSyllables, next]]);
+
+        const nextHasCenter = hasCenter || next.includes(center);
+        stack.push([
+          next,
+          nextLen,
+          nextHasCenter,
+          [...currentWordSyllables, next],
+        ]);
       }
     }
   }
@@ -238,6 +269,156 @@ export class PhonotacticScorer {
     return count;
   }
 
+  countValidSyllables(pool: string): number {
+    const poolSet = new Set(pool.split(''));
+    const isValid = (s: string) => {
+      if (s === '^^' || s === '$$') return false;
+      for (const char of s) {
+        if (!poolSet.has(char)) return false;
+      }
+      return true;
+    };
+
+    const syllables = new Set<string>();
+    for (const [current, nextMap] of Object.entries(this.syllableBigrams)) {
+      if (isValid(current)) syllables.add(current);
+      for (const next of Object.keys(nextMap)) {
+        if (isValid(next)) syllables.add(next);
+      }
+    }
+    return syllables.size;
+  }
+
+  /**
+   * Generates a single random viable word.
+   * Uses a randomized walk on the syllable graph.
+   * Retries up to `maxRetries` times if it hits a dead end or invalid word.
+   */
+  getRandomViableWord(options: {
+    pool: string;
+    center: string;
+    minLen?: number;
+    maxLen?: number;
+    maxRetries?: number;
+  }): string | null {
+    const { pool, center, minLen = 4, maxLen = 8, maxRetries = 50 } = options;
+    const poolSet = new Set(pool.split(''));
+    poolSet.add(center);
+
+    const isValidSyllable = (s: string) => {
+      if (s === '$$') return true;
+      for (const char of s) {
+        if (!poolSet.has(char)) return false;
+      }
+      return true;
+    };
+
+    // Pre-compute valid transitions for this pool (could cache this if needed)
+    const validTransitions = new Map<string, string[]>();
+    for (const [current, nextMap] of Object.entries(this.syllableBigrams)) {
+      if (current !== '^^' && !isValidSyllable(current)) continue;
+      const validNext: string[] = [];
+      for (const next of Object.keys(nextMap)) {
+        if (isValidSyllable(next)) validNext.push(next);
+      }
+      if (validNext.length > 0) validTransitions.set(current, validNext);
+    }
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      let currentSyllable = '^^';
+      let currentWord = '';
+      let hasCenter = false;
+
+      // Walk the graph
+      while (true) {
+        const candidates = validTransitions.get(currentSyllable);
+        if (!candidates || candidates.length === 0) break; // Dead end
+
+        // Pick a random next syllable
+        const next = candidates[Math.floor(Math.random() * candidates.length)];
+        if (!next) break; // Should not happen given check above
+
+        if (next === '$$') {
+          if (currentWord.length >= minLen && hasCenter) {
+            return currentWord;
+          }
+          break; // Invalid word (too short or missing center), try again
+        }
+
+        if (currentWord.length + next.length > maxLen) {
+          break; // Too long
+        }
+
+        // Avoid too many repeats
+        if (currentWord.endsWith(next + next)) {
+          break;
+        }
+
+        currentWord += next;
+        currentSyllable = next;
+        if (next.includes(center)) hasCenter = true;
+      }
+    }
+
+    return null; // Failed to find a word after maxRetries
+  }
+
+  /**
+   * Returns a subset of the model containing only transitions relevant to the given pool.
+   */
+  filterModel(pool: string): {
+    charTransitions: Transitions;
+    syllableBigrams: Transitions;
+  } {
+    const poolSet = new Set(pool.split(''));
+    const isValid = (s: string) => {
+      if (s === '^^' || s === '$$') return true;
+      for (const char of s) {
+        if (!poolSet.has(char)) return false;
+      }
+      return true;
+    };
+
+    const filteredCharTransitions: Transitions = {};
+    for (const [context, nextMap] of Object.entries(this.charTransitions)) {
+      // Context must be valid (except ^^ start markers which might contain non-pool chars in theory,
+      // but here context is within a syllable, so it should be valid)
+      // Actually, charTransitions context includes '^^'.
+      // Let's just check if all chars in context are in pool (ignoring ^^)
+      if (!isValid(context.replace(/\^\^/g, ''))) continue;
+
+      const filteredNext: Record<string, number> = {};
+      for (const [char, prob] of Object.entries(nextMap)) {
+        if (isValid(char)) {
+          filteredNext[char] = prob;
+        }
+      }
+      if (Object.keys(filteredNext).length > 0) {
+        filteredCharTransitions[context] = filteredNext;
+      }
+    }
+
+    const filteredSyllableBigrams: Transitions = {};
+    for (const [current, nextMap] of Object.entries(this.syllableBigrams)) {
+      if (!isValid(current)) continue;
+
+      const filteredNext: Record<string, number> = {};
+      for (const [next, prob] of Object.entries(nextMap)) {
+        if (isValid(next)) {
+          filteredNext[next] = prob;
+        }
+      }
+      if (Object.keys(filteredNext).length > 0) {
+        filteredSyllableBigrams[current] = filteredNext;
+      }
+    }
+
+    return {
+      charTransitions: filteredCharTransitions,
+      syllableBigrams: filteredSyllableBigrams,
+    };
+  }
+
   // Helper to export the trained model as JSON
   exportModel(): string {
     return JSON.stringify({
@@ -247,10 +428,7 @@ export class PhonotacticScorer {
   }
 
   // Helper to load a pre-trained model
-  importModel(data: {
-    charTransitions: Transitions;
-    syllableBigrams: Transitions;
-  }) {
+  importModel(data: ModelData) {
     this.charTransitions = data.charTransitions;
     this.syllableBigrams = data.syllableBigrams;
   }
@@ -260,8 +438,7 @@ export class PhonotacticScorer {
       with: { type: 'json' },
     });
     const scorer = new PhonotacticScorer();
-    // @ts-expect-error JSON import typing
-    scorer.importModel(modelJson);
+    scorer.importModel(modelJson as ModelData);
     return scorer;
   }
 }

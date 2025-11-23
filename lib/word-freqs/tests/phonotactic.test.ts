@@ -44,6 +44,42 @@ suite('PhonotacticScorer', () => {
     assert.isFalse(viable, `Expected ${word} to NOT be viable`);
     assert.isBelow(score, -8.0, `Expected ${word} score to be < -8.0`);
   });
+
+  test('counts valid syllables', () => {
+    // dragon -> dra, gon
+    // grondo -> gron, do
+    const count = scorer.countValidSyllables('dragondo');
+    // Should find at least 'dra', 'gon', 'gron', 'do'
+    assert.isAtLeast(count, 4, 'Expected count to be at least 4');
+  });
+
+  test('can generate random viable words', () => {
+    const word = scorer.getRandomViableWord({
+      pool: 'dragon',
+      center: 'o',
+      minLen: 4,
+      maxLen: 8,
+    });
+    assert.isString(word);
+    assert.include(word!, 'o');
+    assert.isTrue(scorer.isViable(word!), `Expected ${word} to be viable`);
+  });
+
+  test('random generation respects constraints', () => {
+    for (let i = 0; i < 10; i++) {
+      const word = scorer.getRandomViableWord({
+        pool: 'dragon',
+        center: 'o',
+        minLen: 5,
+        maxLen: 6,
+      });
+      if (word) {
+        assert.isAtLeast(word.length, 5);
+        assert.isAtMost(word.length, 6);
+        assert.include(word, 'o');
+      }
+    }
+  });
 });
 
 suite('can load pre-trained model', async () => {

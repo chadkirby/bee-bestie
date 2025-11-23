@@ -9,6 +9,7 @@ import { type WordStatsRecord, type SortKey } from '@/components/WordExplorer';
 import { PuzzleTab } from './PuzzleTab';
 import { TabDataService } from '@/services/tabDataService';
 import { getBeeScore } from '@/lib/utils.ts';
+import { Teletype } from '@/components/Teletype';
 import type { ExposureConfig } from './types';
 
 // Schema for puzzle-only response
@@ -247,18 +248,28 @@ function PuzzlePage() {
 
         {puzzleData && currentDate && (
           <div className="space-y-6">
+
+
             {tab === 'words' && (
-              <PuzzleTab
-                puzzle={puzzleData}
-                lettersToExpose={lettersToExpose}
-                onLettersToExposeChange={handleLettersToExposeChange}
-                wordStats={wordStats}
-                loadingWordStats={loadingWordStats}
-                sortBy={sortBy}
-                sortDirection={sortDirection}
-                onChangeSortBy={handleChangeSortBy}
-                onToggleSortDirection={handleToggleSortDirection}
-              />
+              <>
+                <div className="mb-6">
+                  <Teletype
+                    center={puzzleData.centerLetter}
+                    outer={puzzleData.outerLetters.join('')}
+                  />
+                </div>
+                <PuzzleTab
+                  puzzle={puzzleData}
+                  lettersToExpose={lettersToExpose}
+                  onLettersToExposeChange={handleLettersToExposeChange}
+                  wordStats={wordStats}
+                  loadingWordStats={loadingWordStats}
+                  sortBy={sortBy}
+                  sortDirection={sortDirection}
+                  onChangeSortBy={handleChangeSortBy}
+                  onToggleSortDirection={handleToggleSortDirection}
+                />
+              </>
             )}
 
             {tab === 'hints' && !error && (
