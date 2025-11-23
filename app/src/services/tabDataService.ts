@@ -18,12 +18,52 @@ const WordStatsResponseSchema = z.object({
 
 export type WordStatsResponse = z.infer<typeof WordStatsResponseSchema>;
 
+// Schema for word-details response
+const WordDetailsResponseSchema = z.object({
+  word: z.string(),
+  frequency: z.number(),
+  commonality: z.number(),
+  obscurity: z.number(),
+  probability: z.number(),
+  phonotacticScore: z.number(),
+  spellingBeeOccurrences: z.array(
+    z.object({
+      date: z.string(),
+      centerLetter: z.string(),
+      outerLetters: z.array(z.string()),
+    })
+  ),
+});
+
+export type WordDetailsResponse = z.infer<typeof WordDetailsResponseSchema>;
+
 const client = hc<AppType>('/');
 
 /**
  * Tab data fetchers - reusable functions for fetching tab-specific data
  */
 export class TabDataService {
+  /**
+   * Fetch comprehensive details for a given word
+   */
+  static async fetchWordDetails(
+    word: string,
+    signal?: AbortSignal
+  ): Promise<WordDetailsResponse> {
+    const response = await client.word[':word'].$get(
+      {
+        param: { word },
+      },
+      { init: { signal } }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return WordDetailsResponseSchema.parse(await response.json());
+  }
+
   /**
    * Fetch word statistics for a given puzzle date
    */

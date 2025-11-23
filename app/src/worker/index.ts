@@ -5,6 +5,12 @@ import { z } from 'zod/mini';
 import { getWordStats } from '@lib/word-freqs';
 import { PhonotacticScorer } from '@lib/word-freqs/phonotactic';
 
+// Helper to check if a word is a pangram (uses all 7 letters)
+function isPangram(word: string): boolean {
+  return new Set(word).size === 7;
+}
+
+
 const app = new Hono<{ Bindings: Env }>()
 
   // Phonotactic model endpoint
@@ -67,16 +73,14 @@ const app = new Hono<{ Bindings: Env }>()
   // Word lookup endpoint
   .get('/word/:word', async (c) => {
     const wordParam = c.req.param('word');
-    console.log('wordParam', wordParam);
     if (!wordParam) {
       return c.text('Missing word parameter', 400);
     }
 
     try {
-      const dbMgr = getDbManager(c.env.BEE_PUZZLES);
-      const dates = await dbMgr.getDatesForWord(wordParam);
-      return c.json({ word: wordParam, dates });
+      return await handleWordDetails(c.env, wordParam);
     } catch (error) {
+      console.error('Error fetching word data:', error);
       return c.text('Error fetching word data', 500);
     }
   });
@@ -152,4 +156,61 @@ async function handleWordStats(env: Env, date: DateTime) {
   return new Response(JSON.stringify({ wordStats }), {
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+// Word details endpoint: Comprehensive word information
+async function handleWordDetails(env: Env, word: string) {
+  const dbMgr = getDbManager(env.BEE_PUZZLES);
+  const lower = word.toLowerCase();
+
+  // Get Spelling Bee history (all dates where this word appeared)
+  const dates = await dbMgr.getDatesForWord(lower);
+
+  // Get frequency from Wikipedia corpus
+  const freqMap = await dbMgr.getWordFrequencies([lower]);
+  const frequency = freqMap.get(lower) || 0;
+
+  // Calculate commonality/obscurity metric
+  const stats = getWordStats(frequency);
+
+  // Calculate phonotactic score (how word-like it is)
+  const scorer = await PhonotacticScorer.load();
+  const phonotacticScore = scorer.score(lower);
+
+  // For each date, get puzzle info (just the minimal data)
+  const spellingBeeOccurrences = await Promise.all(
+    dates.map(async (date) => {
+      const dateObj = DateTime.fromISO(date);
+      const puzzle = await dbMgr.getPuzzle(dateObj);
+
+      if (!puzzle) {
+        return {
+          date,
+          centerLetter: '',
+          outerLetters: [],
+        };
+      }
+
+      return {
+        date,
+        centerLetter: puzzle.centerLetter,
+        outerLetters: puzzle.outerLetters,
+      };
+    })
+  );
+
+  return new Response(
+    JSON.stringify({
+      word: lower,
+      frequency,
+      commonality: stats.commonality,
+      obscurity: 1 - stats.commonality, // Obscurity is inverse of commonality
+      probability: stats.probability,
+      phonotacticScore,
+      spellingBeeOccurrences,
+    }),
+    {
+      headers: { 'Content-Type': 'application/json' },
+    }
+  );
 }

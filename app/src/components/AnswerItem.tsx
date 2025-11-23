@@ -1,3 +1,4 @@
+import { NavLink, useLocation } from 'react-router-dom';
 import type { ExposureConfig } from "@/ui/types";
 
 interface AnswerDisplayProps {
@@ -7,6 +8,7 @@ interface AnswerDisplayProps {
 }
 
 export function AnswerItem({ answer, lettersToExpose, }: AnswerDisplayProps) {
+  const location = useLocation();
   const { startingLetters, endingLetters, showAll } = lettersToExpose;
   let displayString = answer;
 
@@ -17,13 +19,19 @@ export function AnswerItem({ answer, lettersToExpose, }: AnswerDisplayProps) {
     // Calculate masked part
     const maskedLength = Math.max(0, answer.length - totalExposed);
     displayString =
-      `${answer.slice(0, startingLetters)}${'*'.repeat(maskedLength)}${(endingLetters > 0 ? answer.slice(-endingLetters) : '')} (${answer.length})`;
+      `${answer.slice(0, startingLetters)}${'*'.repeat(maskedLength)}${(endingLetters > 0 ? answer.slice(-endingLetters) : '')}`;
   }
 
-  // const isPangram = new Set(answer.split('')).size >= 7;
+  // Extract puzzle date from current location for back navigation
+  const puzzleDate = location.pathname.match(/\/puzzle\/([^/]+)/)?.[1];
+
   return (
-    <div className="text-sm font-mono">
-      {displayString}
-    </div>
+    <NavLink
+      to={`/word/${answer.toLowerCase()}`}
+      state={{ fromPuzzle: puzzleDate }}
+      className="text-sm font-mono hover:text-blue-600 hover:underline transition-colors"
+    >
+      {displayString} ({answer.length})
+    </NavLink>
   );
 }

@@ -100,16 +100,6 @@ export function TableControls({
 
       {/* Slider Controls */}
       <div className="flex items-center gap-4 flex-1 sm:justify-end sm:max-w-md">
-        <Button
-          type="button"
-          variant={lettersToExpose.showAll ? "secondary" : "ghost"}
-          size="sm"
-          className="h-8 text-xs w-20"
-          onClick={handleShowAll}
-        >
-          {lettersToExpose.showAll ? 'All Shown' : 'Show All'}
-        </Button>
-
         <div className={cn("flex items-center gap-2 flex-1 min-w-[140px]", lettersToExpose.showAll && "opacity-50 pointer-events-none")}>
           <span className="text-xs font-medium text-muted-foreground shrink-0">
             Reveal:
@@ -132,6 +122,17 @@ export function TableControls({
             {maxRange - endVal}
           </span>
         </div>
+
+        <Button
+          type="button"
+          variant={lettersToExpose.showAll ? "secondary" : "ghost"}
+          size="sm"
+          className="h-8 text-xs w-20"
+          onClick={handleShowAll}
+        >
+          {lettersToExpose.showAll ? 'All Shown' : 'Show All'}
+        </Button>
+
       </div>
     </div>
   );
