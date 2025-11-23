@@ -1,74 +1,94 @@
+import { Hono } from 'hono';
 import { DateTime } from 'luxon';
 import { getDbManager } from '@lib/puzzle';
 import { z } from 'zod/mini';
 import { getWordStats } from '@lib/word-freqs';
+import { PhonotacticScorer } from '@lib/word-freqs/phonotactic';
 
-export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
-    const url = new URL(request.url);
+const app = new Hono<{ Bindings: Env }>();
 
-    // New progressive loading endpoints
-    if (url.pathname.startsWith('/puzzle/')) {
-      const parts = url.pathname.split('/');
-      // parts[0] = '', parts[1] = 'puzzle', parts[2] = pool or date
+// Phonotactic model endpoint
+app.get('/puzzle/:pool/phonotactic', async (c) => {
+  const pool = c.req.param('pool');
 
-      // Check if parts[2] looks like a pool (7 letters) or a date
-      const param = parts[2];
+  // Validation: pool must be 7 letters
+  if (!/^[a-z]{7}$/i.test(pool)) {
+    // If it doesn't match, it might be a date, but this route is specific to phonotactic
+    // However, the original code had a check: if (param && /^[a-z]{7}$/i.test(param) && parts[3] === 'phonotactic')
+    // So if it's not 7 letters, it wouldn't match this route in a strict sense if we use regex in route,
+    // but Hono doesn't support regex in param easily without middleware or validator.
+    // For now, we'll just return 404 or proceed.
+    // Actually, if the user requests /puzzle/2025-11-15/phonotactic, it might match this if we aren't careful.
+    // But the original code only handled phonotactic if param was 7 chars.
+    // Let's keep the validation inside.
+    return c.notFound();
+  }
 
-      // /puzzle/:pool/phonotactic
-      if (param && /^[a-z]{7}$/i.test(param) && parts[3] === 'phonotactic') {
-        return await handlePhonotactic(param);
-      }
+  try {
+    // Load the full model (this might be cached if the worker stays warm)
+    const scorer = await PhonotacticScorer.load();
 
-      // Existing date-based routes
-      const dateParam = param; // /puzzle/2025-11-15
+    // Filter for the specific pool
+    const filtered = scorer.filterModel(pool);
 
-      if (!dateParam) {
-        return new Response('Missing date parameter', { status: 400 });
-      }
+    return c.json(filtered, 200, {
+      'Cache-Control': 'public, max-age=86400', // Cache for 1 day
+    });
+  } catch (error) {
+    console.error('Error generating phonotactic model:', error);
+    return c.text('Error generating model', 500);
+  }
+});
 
-      const date = DateTime.fromFormat(dateParam, 'yyyy-MM-dd');
-      if (!date.isValid) {
-        return new Response('Invalid date format', { status: 400 });
-      }
+// Word statistics endpoint
+app.get('/puzzle/:date/word-stats', async (c) => {
+  const dateParam = c.req.param('date');
+  const date = DateTime.fromFormat(dateParam, 'yyyy-MM-dd');
 
-      try {
-        // Check if this is a word-stats request
-        if (parts[3] === 'word-stats') {
-          return await handleWordStats(env, date);
-        }
+  if (!date.isValid) {
+    return c.text('Invalid date format', 400);
+  }
 
-        // Regular puzzle request (no trailing slash or different endpoint)
-        if (!parts[3]) {
-          return await handlePuzzle(env, date);
-        }
+  try {
+    return await handleWordStats(c.env, date);
+  } catch (error) {
+    return c.text('Error fetching puzzle data', 500);
+  }
+});
 
-        return new Response('Not found', { status: 404 });
-      } catch (error) {
-        return new Response('Error fetching puzzle data', { status: 500 });
-      }
-    }
+// Puzzle endpoint
+app.get('/puzzle/:date', async (c) => {
+  const dateParam = c.req.param('date');
+  const date = DateTime.fromFormat(dateParam, 'yyyy-MM-dd');
 
-    if (url.pathname === '/word') {
-      const wordParam = url.searchParams.get('word');
-      if (!wordParam) {
-        return new Response('Missing word parameter', { status: 400 });
-      }
+  if (!date.isValid) {
+    return c.text('Invalid date format', 400);
+  }
 
-      try {
-        const dbMgr = getDbManager(env.BEE_PUZZLES);
-        const dates = await dbMgr.getDatesForWord(wordParam);
-        return new Response(JSON.stringify({ word: wordParam, dates }), {
-          headers: { 'Content-Type': 'application/json' },
-        });
-      } catch (error) {
-        return new Response('Error fetching word data', { status: 500 });
-      }
-    }
+  try {
+    return await handlePuzzle(c.env, date);
+  } catch (error) {
+    return c.text('Error fetching puzzle data', 500);
+  }
+});
 
-    return new Response('Not found', { status: 404 });
-  },
-};
+// Word lookup endpoint
+app.get('/word', async (c) => {
+  const wordParam = c.req.query('word');
+  if (!wordParam) {
+    return c.text('Missing word parameter', 400);
+  }
+
+  try {
+    const dbMgr = getDbManager(c.env.BEE_PUZZLES);
+    const dates = await dbMgr.getDatesForWord(wordParam);
+    return c.json({ word: wordParam, dates });
+  } catch (error) {
+    return c.text('Error fetching word data', 500);
+  }
+});
+
+export default app;
 
 async function loadJSON<T extends z.ZodMiniType<any>>(
   bucketBinding: R2Bucket,
@@ -138,27 +158,4 @@ async function handleWordStats(env: Env, date: DateTime) {
   return new Response(JSON.stringify({ wordStats }), {
     headers: { 'Content-Type': 'application/json' },
   });
-}
-
-// Phonotactic model endpoint
-import { PhonotacticScorer } from '@lib/word-freqs/phonotactic';
-
-async function handlePhonotactic(pool: string) {
-  try {
-    // Load the full model (this might be cached if the worker stays warm)
-    const scorer = await PhonotacticScorer.load();
-
-    // Filter for the specific pool
-    const filtered = scorer.filterModel(pool);
-
-    return new Response(JSON.stringify(filtered), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=86400', // Cache for 1 day
-      },
-    });
-  } catch (error) {
-    console.error('Error generating phonotactic model:', error);
-    return new Response('Error generating model', { status: 500 });
-  }
 }

@@ -8,12 +8,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test": "vitest --run",
     "build": "vite build",
     "preview": "npm run build && vite preview",
     "deploy": "npm run build && wrangler deploy"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.13.4",
+    "@cloudflare/vitest-pool-workers": "^0.10.10",
     "@cloudflare/workers-types": "catalog:",
     "@types/luxon": "catalog:",
     "@types/react": "^19.1.13",
@@ -24,6 +26,7 @@
     "tw-animate-css": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
+    "vitest": "^3",
     "wrangler": "catalog:"
   },
   "dependencies": {
@@ -34,8 +37,11 @@
     "@radix-ui/react-slider": "catalog:",
     "@radix-ui/react-slot": "catalog:",
     "@tailwindcss/vite": "catalog:",
+    "@vitest/runner": "^3",
+    "@vitest/snapshot": "^3",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
+    "hono": "catalog:",
     "lucide-react": "catalog:",
     "luxon": "catalog:",
     "quick-lru": "catalog:",
