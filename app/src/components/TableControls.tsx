@@ -70,6 +70,9 @@ export function TableControls({
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-3 bg-card text-card-foreground shadow-sm">
       {/* Sort Controls */}
       <div className="flex items-center gap-2">
+        <label htmlFor="sort-by" className="text-xs sm:text-sm font-medium text-muted-foreground">
+          Sort by:
+        </label>
         <select
           id="sort-by"
           className="h-8 rounded-md border bg-background px-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -89,6 +92,7 @@ export function TableControls({
           variant="ghost"
           className="h-8 px-2 text-xs sm:text-sm"
           onClick={onToggleSortDirection}
+          aria-label={`Sort ${sortDirection === 'desc' ? 'descending' : 'ascending'}`}
         >
           {sortDirection === 'desc' ? '↓' : '↑'}
         </Button>
@@ -107,6 +111,9 @@ export function TableControls({
         </Button>
 
         <div className={cn("flex items-center gap-2 flex-1 min-w-[140px]", lettersToExpose.showAll && "opacity-50 pointer-events-none")}>
+          <span className="text-xs font-medium text-muted-foreground shrink-0">
+            Reveal:
+          </span>
           <span className="text-xs font-medium text-muted-foreground w-4 text-center">
             {lettersToExpose.startingLetters}
           </span>
@@ -119,6 +126,7 @@ export function TableControls({
             onValueChange={handleSliderChange}
             disabled={!!lettersToExpose.showAll}
             className="flex-1"
+            aria-label="Number of letters to reveal from start and end of words"
           />
           <span className="text-xs font-medium text-muted-foreground w-4 text-center">
             {maxRange - endVal}
