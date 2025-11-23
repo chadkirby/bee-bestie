@@ -7,6 +7,7 @@ import { WordExplorer, type WordStatsRecord, type BasicWordRecord, type WordReco
 import type { ExposureConfig, OnLettersToExposeChange, OnChangeSortBy, OnToggleSortDirection } from './types';
 import { getBeeScore } from '@/lib/utils.ts';
 import { Badge } from '@/components/ui/badge';
+import { Teletype } from '@/components/Teletype';
 
 interface PuzzleTabProps {
   puzzle: OnePuzzle;
@@ -80,6 +81,14 @@ export function PuzzleTab({
               </div>
               <div className="flex flex-col items-center">
                 <ScoringSummary totalPoints={totalPoints} />
+              </div>
+              <div className="mb-6">
+                <Teletype
+                  center={puzzle.centerLetter}
+                  outer={puzzle.outerLetters.join('')}
+                  forbiddenWords={puzzle.answers}
+                  className="w-64 mx-auto"
+                />
               </div>
             </div>
           </div>

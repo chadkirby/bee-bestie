@@ -28,7 +28,7 @@
     "word-stats-metadata.json"
   ],
   "scripts": {
-    "test": "vitest",
+    "test": "vitest --run",
     "typecheck": "tsc --skipLibCheck --noEmit",
     "watch": "tsc -b -w",
     "build": "tsc -b"

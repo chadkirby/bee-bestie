@@ -294,6 +294,11 @@ export class PhonotacticScorer {
    * Uses a randomized walk on the syllable graph.
    * Retries up to `maxRetries` times if it hits a dead end or invalid word.
    */
+  /**
+   * Generates a single random viable word.
+   * Uses a randomized walk on the syllable graph.
+   * Retries up to `maxRetries` times if it hits a dead end or invalid word.
+   */
   getRandomViableWord(options: {
     pool: string;
     center: string;
@@ -306,61 +311,149 @@ export class PhonotacticScorer {
     poolSet.add(center);
 
     const isValidSyllable = (s: string) => {
-      if (s === '$$') return true;
+      if (s === '$$' || s === '^^') return true;
       for (const char of s) {
         if (!poolSet.has(char)) return false;
       }
       return true;
     };
 
-    // Pre-compute valid transitions for this pool (could cache this if needed)
+    // 1. Build Transition Maps (Forward & Backward)
     const validTransitions = new Map<string, string[]>();
+    const validReverseTransitions = new Map<string, string[]>();
+    const anchorSyllables: string[] = [];
+
+    // We need to include '^^' in valid syllables for the graph structure,
+    // but we don't want to pick it as a seed.
+    const validSyllables = new Set<string>();
+
     for (const [current, nextMap] of Object.entries(this.syllableBigrams)) {
-      if (current !== '^^' && !isValidSyllable(current)) continue;
-      const validNext: string[] = [];
-      for (const next of Object.keys(nextMap)) {
-        if (isValidSyllable(next)) validNext.push(next);
+      if (!isValidSyllable(current)) continue;
+      validSyllables.add(current);
+
+      if (current !== '^^' && current !== '$$' && current.includes(center)) {
+        anchorSyllables.push(current);
       }
-      if (validNext.length > 0) validTransitions.set(current, validNext);
+
+      for (const next of Object.keys(nextMap)) {
+        if (!isValidSyllable(next)) continue;
+        validSyllables.add(next);
+
+        // Forward
+        if (!validTransitions.has(current)) validTransitions.set(current, []);
+        validTransitions.get(current)!.push(next);
+
+        // Backward
+        if (!validReverseTransitions.has(next))
+          validReverseTransitions.set(next, []);
+        validReverseTransitions.get(next)!.push(current);
+      }
     }
+
+    // If no anchors, we can't enforce the center letter constraint easily with this method
+    // unless we just pick *any* valid syllable and hope.
+    // But for Spelling Bee, we MUST have the center letter.
+    if (anchorSyllables.length === 0) return null;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-      let currentSyllable = '^^';
-      let currentWord = '';
-      let hasCenter = false;
+      // 2. Pick a random seed syllable that contains the center letter
+      const seed =
+        anchorSyllables[Math.floor(Math.random() * anchorSyllables.length)];
+      if (!seed) continue;
 
-      // Walk the graph
-      while (true) {
-        const candidates = validTransitions.get(currentSyllable);
-        if (!candidates || candidates.length === 0) break; // Dead end
+      // 3. Walk Backwards to '^^'
+      let prefixParts: string[] = [];
+      let currentBack = seed;
+      let failedBack = false;
 
-        // Pick a random next syllable
-        const next = candidates[Math.floor(Math.random() * candidates.length)];
-        if (!next) break; // Should not happen given check above
-
-        if (next === '$$') {
-          if (currentWord.length >= minLen && hasCenter) {
-            return currentWord;
-          }
-          break; // Invalid word (too short or missing center), try again
-        }
-
-        if (currentWord.length + next.length > maxLen) {
-          break; // Too long
-        }
-
-        // Avoid too many repeats
-        if (currentWord.endsWith(next + next)) {
+      // Safety break for infinite loops (though graph should be acyclic-ish for valid words, cycles exist)
+      let backSteps = 0;
+      while (currentBack !== '^^') {
+        const prevCandidates = validReverseTransitions.get(currentBack);
+        if (!prevCandidates || prevCandidates.length === 0) {
+          failedBack = true;
           break;
         }
+        const prev =
+          prevCandidates[Math.floor(Math.random() * prevCandidates.length)];
+        if (!prev) {
+          failedBack = true;
+          break;
+        }
+        if (prev !== '^^') {
+          prefixParts.unshift(prev);
+        }
+        currentBack = prev;
 
-        currentWord += next;
-        currentSyllable = next;
-        if (next.includes(center)) hasCenter = true;
+        backSteps++;
+        if (backSteps > 10) {
+          failedBack = true;
+          break;
+        } // Arbitrary limit to prevent infinite loops
       }
+
+      if (failedBack) continue;
+
+      // 4. Walk Forwards to '$$'
+      let suffixParts: string[] = [];
+      let currentFwd = seed;
+      let failedFwd = false;
+      let fwdSteps = 0;
+
+      while (currentFwd !== '$$') {
+        const nextCandidates = validTransitions.get(currentFwd);
+        if (!nextCandidates || nextCandidates.length === 0) {
+          failedFwd = true;
+          break;
+        }
+        const next =
+          nextCandidates[Math.floor(Math.random() * nextCandidates.length)];
+        if (!next) {
+          failedFwd = true;
+          break;
+        }
+        if (next !== '$$') {
+          suffixParts.push(next);
+        }
+        currentFwd = next;
+
+        fwdSteps++;
+        if (fwdSteps > 10) {
+          failedFwd = true;
+          break;
+        }
+      }
+
+      if (failedFwd) continue;
+
+      // 5. Construct Word
+      const fullWordSyllables = [...prefixParts, seed, ...suffixParts];
+      const word = fullWordSyllables.join('');
+
+      // 6. Validate Constraints
+      if (word.length < minLen || word.length > maxLen) continue;
+
+      // Check for adjacent identical syllables
+      let hasTooManyRepeats = false;
+      for (let i = 0; i < fullWordSyllables.length - 1; i++) {
+        if (fullWordSyllables[i] === fullWordSyllables[i + 1]) {
+          // allow 2 adjacent identical syllables, but not 3. This is the "tartar" rule.
+          // "Tartar" is allowed, but not "tartartar".
+          if (
+            i + 2 < fullWordSyllables.length &&
+            fullWordSyllables[i + 2] === fullWordSyllables[i]
+          ) {
+            hasTooManyRepeats = true;
+            break;
+          }
+        }
+      }
+      if (hasTooManyRepeats) continue;
+
+      return word;
     }
 
-    return null; // Failed to find a word after maxRetries
+    return null;
   }
 
   /**

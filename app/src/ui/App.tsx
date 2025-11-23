@@ -9,7 +9,6 @@ import { type WordStatsRecord, type SortKey } from '@/components/WordExplorer';
 import { PuzzleTab } from './PuzzleTab';
 import { TabDataService } from '@/services/tabDataService';
 import { getBeeScore } from '@/lib/utils.ts';
-import { Teletype } from '@/components/Teletype';
 import type { ExposureConfig } from './types';
 
 // Schema for puzzle-only response
@@ -252,12 +251,6 @@ function PuzzlePage() {
 
             {tab === 'words' && (
               <>
-                <div className="mb-6">
-                  <Teletype
-                    center={puzzleData.centerLetter}
-                    outer={puzzleData.outerLetters.join('')}
-                  />
-                </div>
                 <PuzzleTab
                   puzzle={puzzleData}
                   lettersToExpose={lettersToExpose}

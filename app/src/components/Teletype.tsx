@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button';
 interface TeletypeProps {
   center: string;
   outer: string;
+  forbiddenWords?: string[];
+  className?: string;
 }
 
-export function Teletype({ center, outer }: TeletypeProps) {
+export function Teletype({ center, outer, forbiddenWords = [], className }: TeletypeProps) {
   const [currentWord, setCurrentWord] = useState('');
   const [scorer, setScorer] = useState<PhonotacticScorer | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,13 +61,15 @@ export function Teletype({ center, outer }: TeletypeProps) {
     let animationFrameId: number;
     let lastTime = 0;
     const charDelay = 50; // ms per character
-    const wordPauseDelay = 500; // ms to pause at full word
+    const wordPauseDelay = 150; // ms to pause at full word
     const backspaceDelay = 30; // ms per backspace (faster than typing)
 
     let state: 'typing' | 'waiting' | 'backspacing' = 'typing';
 
     const getNextWord = () => {
       const maxAttempts = 50;
+      const forbiddenSet = new Set(forbiddenWords);
+
       for (let i = 0; i < maxAttempts; i++) {
         // Pick a random length between 4 and 12
         const targetLen = Math.floor(Math.random() * (12 - 4 + 1)) + 4;
@@ -78,7 +82,7 @@ export function Teletype({ center, outer }: TeletypeProps) {
           maxRetries: 100
         });
 
-        if (w && !seenWordsRef.current.has(w)) {
+        if (w && !seenWordsRef.current.has(w) && !forbiddenSet.has(w)) {
           seenWordsRef.current.add(w);
           if (seenWordsRef.current.size > 5000) {
             seenWordsRef.current.clear();
@@ -88,6 +92,19 @@ export function Teletype({ center, outer }: TeletypeProps) {
       }
 
       // Fallback: Try any length if specific length fails repeatedly
+      // We still try to avoid forbidden words here if possible, but if getRandomViableWord
+      // just returns one, we might need to retry a few times.
+      for (let k = 0; k < 10; k++) {
+        const w = scorer.getRandomViableWord({
+          pool: outer + center,
+          center,
+          minLen: 4,
+          maxLen: 12
+        });
+        if (w && !forbiddenSet.has(w)) return w;
+      }
+
+      // Last resort, just return whatever (or maybe null/empty string if we really want to be strict)
       return scorer.getRandomViableWord({
         pool: outer + center,
         center,
@@ -151,7 +168,7 @@ export function Teletype({ center, outer }: TeletypeProps) {
   if (error) return null;
 
   return (
-    <div className="relative font-mono text-sm opacity-70 bg-black/5 p-3 rounded-md flex items-center group">
+    <div className={`relative font-mono text-sm opacity-70 bg-black/5 p-3 rounded-md flex items-center group ${className || ''}`}>
       {/* Controls */}
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
         <Button
