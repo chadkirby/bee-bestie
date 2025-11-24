@@ -28,7 +28,7 @@ export type BasicWordRecord = {
 export type WordRecord = WordStatsRecord | BasicWordRecord;
 
 // Sorting by score
-export type SortKey = 'score' | 'frequency' | 'obscurity' | 'sbCount' | 'lastSeen' | 'word';
+export type SortKey = 'length' | 'obscurity' | 'sbCount' | 'lastSeen' | 'word';
 
 // Type-safe configuration for sort options and display headers
 export interface SortConfig {
@@ -39,19 +39,14 @@ export interface SortConfig {
 
 export const SORT_CONFIGS: SortConfig[] = [
   {
-    key: 'score',
-    label: 'Points',
-    getValue: (stat) => stat.score,
-  },
-  {
-    key: 'frequency',
-    label: 'Count (wiki)',
-    getValue: (stat) => ('frequency' in stat) ? stat.frequency.toLocaleString() : '--',
+    key: 'length',
+    label: 'Length',
+    getValue: (stat) => stat.word.length,
   },
   {
     key: 'obscurity',
     label: 'Obscurity (wiki)',
-    getValue: (stat) => ('commonality' in stat) ? (1 - stat.commonality).toFixed(3) : '--',
+    getValue: (stat) => ('commonality' in stat) ? ((1 - stat.commonality) * 100).toFixed(1) : '--',
   },
   {
     key: 'sbCount',
@@ -155,10 +150,10 @@ export function WordExplorer({
       }
 
       // numeric fields: score, frequency, obscurity
-      if (sortBy === 'score' || sortBy === 'frequency' || sortBy === 'obscurity') {
+      if (sortBy === 'length' || sortBy === 'obscurity') {
       // Score doesn't require stats, but frequency and obscurity do
-        if (sortBy === 'score') {
-          return (a.score - b.score) * dir;
+        if (sortBy === 'length') {
+          return (a.word.length - b.word.length) * dir;
         }
 
         // Put words without stats at the end
@@ -206,13 +201,13 @@ export function WordExplorer({
                 )}
               </div>
             </div>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[0.7rem] font-mono text-muted-foreground sm:text-xs sm:grid-cols-5">
+            <dl className={`grid grid-cols-2 gap-x-4 gap-y-2 text-[0.7rem] font-mono text-muted-foreground sm:text-xs sm:grid-cols-${SORT_CONFIGS.length}`}>
               {SORT_CONFIGS.map(({ key, label, getValue }) => (
                 <div key={key}>
                   <dt className="text-[0.6rem] uppercase tracking-wide text-muted-foreground">
                     {label}
                   </dt>
-                  <dd className={key === 'score' ? 'font-semibold text-yellow-600' : 'text-foreground'}>
+                  <dd className={key === 'length' ? 'font-semibold text-yellow-600' : 'text-foreground'}>
                     {getValue(stat, puzzleDateIso)}
                   </dd>
                 </div>
