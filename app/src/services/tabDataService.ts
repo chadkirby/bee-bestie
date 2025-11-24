@@ -25,7 +25,7 @@ const WordDetailsResponseSchema = z.object({
   commonality: z.number(),
   obscurity: z.number(),
   probability: z.number(),
-  phonotacticScore: z.number(),
+  sbCommonality: z.number(),
   spellingBeeOccurrences: z.array(
     z.object({
       date: z.string(),

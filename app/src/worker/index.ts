@@ -2,14 +2,13 @@ import { Hono } from 'hono';
 import { DateTime } from 'luxon';
 import { getDbManager } from '@lib/puzzle';
 import { z } from 'zod/mini';
-import { getWordStats } from '@lib/word-freqs';
+import { getWordStats, computeCommonality } from '@lib/word-freqs';
 import { PhonotacticScorer } from '@lib/word-freqs/phonotactic';
 
 // Helper to check if a word is a pangram (uses all 7 letters)
 function isPangram(word: string): boolean {
   return new Set(word).size === 7;
 }
-
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -173,9 +172,14 @@ async function handleWordDetails(env: Env, word: string) {
   // Calculate commonality/obscurity metric
   const stats = getWordStats(frequency);
 
-  // Calculate phonotactic score (how word-like it is)
-  const scorer = await PhonotacticScorer.load();
-  const phonotacticScore = scorer.score(lower);
+  // Calculate SB Commonality
+  const sbStats = await dbMgr.getSbCorpusStats();
+  const sbFrequency = dates.length;
+  const sbCommonality = computeCommonality(
+    sbFrequency / sbStats.totalFrequency,
+    sbStats.minFrequency / sbStats.totalFrequency,
+    sbStats.maxFrequency / sbStats.totalFrequency
+  );
 
   // For each date, get puzzle info (just the minimal data)
   const spellingBeeOccurrences = await Promise.all(
@@ -206,7 +210,7 @@ async function handleWordDetails(env: Env, word: string) {
       commonality: stats.commonality,
       obscurity: 1 - stats.commonality, // Obscurity is inverse of commonality
       probability: stats.probability,
-      phonotacticScore,
+      sbCommonality,
       spellingBeeOccurrences,
     }),
     {

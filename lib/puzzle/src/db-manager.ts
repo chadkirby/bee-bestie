@@ -215,6 +215,52 @@ class DbManager {
 
     return { puzzleInserted, wordDatesInserted };
   }
+
+  @memoize(3600) // Cache for 1 hour
+  async getSbCorpusStats(): Promise<{
+    totalFrequency: number;
+    maxFrequency: number;
+    minFrequency: number;
+  }> {
+    // Total frequency (total number of word occurrences)
+    const totalStmt = this.db.prepare(
+      'SELECT COUNT(*) as count FROM word_dates'
+    );
+    const totalResult = await totalStmt.first<{ count: number }>();
+    const totalFrequency = totalResult?.count || 0;
+
+    // Max frequency (most frequent word count)
+    const maxStmt = this.db.prepare(
+      `
+      SELECT COUNT(*) as count
+      FROM word_dates
+      GROUP BY word
+      ORDER BY count DESC
+      LIMIT 1
+      `
+    );
+    const maxResult = await maxStmt.first<{ count: number }>();
+    const maxFrequency = maxResult?.count || 0;
+
+    // Min frequency (least frequent word count) - usually 1
+    const minStmt = this.db.prepare(
+      `
+      SELECT COUNT(*) as count
+      FROM word_dates
+      GROUP BY word
+      ORDER BY count ASC
+      LIMIT 1
+      `
+    );
+    const minResult = await minStmt.first<{ count: number }>();
+    const minFrequency = minResult?.count || 1;
+
+    return {
+      totalFrequency,
+      maxFrequency,
+      minFrequency,
+    };
+  }
 }
 
 export type SbHistory = {

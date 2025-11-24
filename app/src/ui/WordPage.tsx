@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { DateTime } from 'luxon';
 import { useParams, useLocation, useNavigate, NavLink } from 'react-router-dom';
 import { TabDataService, type WordDetailsResponse } from '@/services/tabDataService';
+import { WordTimeline } from '@/components/WordTimeline';
 
 // Helper to check if a word is a pangram (uses all 7 letters)
 function isPangram(word: string): boolean {
@@ -158,88 +159,86 @@ export default function WordPage() {
 
             {wordDetails.spellingBeeOccurrences.length > 0 && (
               <div>
-                <h3 className="text-lg font-medium mb-2">Puzzle Appearances</h3>
-                <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
-                  {wordDetails.spellingBeeOccurrences.map((occ) => (
-                    <div
-                      key={occ.date}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
-                    >
-                      <NavLink
-                        to={`/puzzle/${occ.date}/words`}
-                        state={{ fromWord: wordDetails.word }}
-                        className="text-blue-600 hover:underline font-medium"
-                      >
-                        {DateTime.fromISO(occ.date).toFormat('LLLL d, yyyy')}
-                      </NavLink>
-                      <span className="text-gray-600 font-mono text-sm">
-                        {occ.centerLetter}/{occ.outerLetters.join('')}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <h3 className="text-lg font-medium mb-4">Puzzle Appearances</h3>
+                <WordTimeline
+                  occurrences={wordDetails.spellingBeeOccurrences}
+                  word={wordDetails.word}
+                />
               </div>
             )}
           </section>
 
           {/* Linguistic Metrics */}
           <section className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-semibold mb-4">Linguistic Metrics</h2>
-            <dl className="grid gap-4">
+            <h2 className="text-2xl font-semibold mb-6">Linguistic Metrics</h2>
+
+            <div className="space-y-8">
+              {/* Commonality Comparison */}
               <div>
-                <dt className="text-sm text-gray-600 mb-1">
-                  Phonotactic Score (word-likeness)
-                </dt>
-                <dd className="text-xl font-bold">
-                  {wordDetails.phonotacticScore.toFixed(3)}
-                </dd>
-                <dd className="text-sm text-gray-500 mt-1">
-                  Higher scores indicate more typical English phonotactic patterns
-                </dd>
+                <h3 className="text-lg font-medium mb-4">Frequency Comparison</h3>
+                <div className="space-y-6">
+                  {/* World Commonality */}
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-700">World Frequency</span>
+                      <span className="text-sm text-gray-500">
+                        {(wordDetails.commonality * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                      <div
+                        className="bg-blue-600 h-2.5 rounded-full"
+                        style={{ width: `${wordDetails.commonality * 100}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Based on occurrence in Wikipedia corpus
+                    </p>
+                  </div>
+
+                  {/* SB Commonality */}
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-700">Spelling Bee Frequency</span>
+                      <span className="text-sm text-gray-500">
+                        {(wordDetails.sbCommonality * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                      <div
+                        className="bg-yellow-500 h-2.5 rounded-full"
+                        style={{ width: `${wordDetails.sbCommonality * 100}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Relative to other Spelling Bee answers
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <dt className="text-sm text-gray-600 mb-1">
-                  Wikipedia Frequency (count)
-                </dt>
-                <dd className="text-xl font-bold">
-                  {wordDetails.frequency.toLocaleString()}
-                </dd>
-                <dd className="text-sm text-gray-500 mt-1">
-                  Number of occurrences in Wikipedia corpus
-                </dd>
-              </div>
+              {/* Stats Grid */}
+              <dl className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                <div>
+                  <dt className="text-sm text-gray-600 mb-1">
+                    Wikipedia Count
+                  </dt>
+                  <dd className="text-xl font-bold">
+                    {wordDetails.frequency.toLocaleString()}
+                  </dd>
+                </div>
 
-              <div>
-                <dt className="text-sm text-gray-600 mb-1">Commonality</dt>
-                <dd className="text-xl font-bold">
-                  {(wordDetails.commonality * 100).toFixed(2)}%
-                </dd>
-                <dd className="text-sm text-gray-500 mt-1">
-                  Relative frequency compared to all words (0-100%)
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-sm text-gray-600 mb-1">Obscurity</dt>
-                <dd className="text-xl font-bold">
-                  {(wordDetails.obscurity * 100).toFixed(2)}%
-                </dd>
-                <dd className="text-sm text-gray-500 mt-1">
-                  Inverse of commonality (higher = more obscure)
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-sm text-gray-600 mb-1">Probability</dt>
-                <dd className="text-xl font-bold">
-                  {wordDetails.probability.toExponential(3)}
-                </dd>
-                <dd className="text-sm text-gray-500 mt-1">
-                  Probability of occurrence in Wikipedia corpus
-                </dd>
-              </div>
-            </dl>
+                <div>
+                  <dt className="text-sm text-gray-600 mb-1">Obscurity Score</dt>
+                  <dd className="text-xl font-bold">
+                    {(wordDetails.obscurity * 100).toFixed(1)}%
+                  </dd>
+                  <dd className="text-xs text-gray-500 mt-1">
+                    Higher = More obscure
+                  </dd>
+                </div>
+              </dl>
+            </div>
           </section>
         </div>
       </div>
