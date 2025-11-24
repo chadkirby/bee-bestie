@@ -2,7 +2,11 @@ import { Hono } from 'hono';
 import { DateTime } from 'luxon';
 import { getDbManager } from '@lib/puzzle';
 import { z } from 'zod/mini';
-import { getWordStats, computeCommonality } from '@lib/word-freqs';
+import {
+  getWordStats,
+  computeCommonality,
+  wordFreqMetadata,
+} from '@lib/word-freqs';
 import { PhonotacticScorer } from '@lib/word-freqs/phonotactic';
 
 // Helper to check if a word is a pangram (uses all 7 letters)
@@ -203,15 +207,29 @@ async function handleWordDetails(env: Env, word: string) {
     })
   );
 
+  // Get hyphenated forms
+  const hyphenates = await dbMgr.getHyphenates(lower);
+  const hyphenatesWithStats = hyphenates.map((h) => {
+    const hStats = getWordStats(h.frequency);
+    return {
+      form: h.form,
+      frequency: h.frequency,
+      commonality: hStats.commonality,
+    };
+  });
+
   return new Response(
     JSON.stringify({
       word: lower,
       frequency,
+      totalWikipediaFrequency: wordFreqMetadata.totalFrequency,
       commonality: stats.commonality,
       obscurity: 1 - stats.commonality, // Obscurity is inverse of commonality
       probability: stats.probability,
       sbCommonality,
+      totalSbFrequency: sbStats.totalFrequency,
       spellingBeeOccurrences,
+      hyphenates: hyphenatesWithStats,
     }),
     {
       headers: { 'Content-Type': 'application/json' },

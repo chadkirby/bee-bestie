@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/vitest-pool-workers" />
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import worker from './index';
 
 describe('Worker Routes', () => {
@@ -40,6 +40,8 @@ describe('Worker Routes', () => {
     expect(body).toHaveProperty('phonotacticScore');
     expect(body).toHaveProperty('spellingBeeOccurrences');
     expect(Array.isArray(body.spellingBeeOccurrences)).toBe(true);
+    expect(body).toHaveProperty('hyphenates');
+    expect(Array.isArray(body.hyphenates)).toBe(true);
   });
 
   it('GET /puzzle/:pool/phonotactic returns 404 for invalid pool', async () => {

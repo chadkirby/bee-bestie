@@ -22,15 +22,24 @@ export type WordStatsResponse = z.infer<typeof WordStatsResponseSchema>;
 const WordDetailsResponseSchema = z.object({
   word: z.string(),
   frequency: z.number(),
+  totalWikipediaFrequency: z.number(),
   commonality: z.number(),
   obscurity: z.number(),
   probability: z.number(),
   sbCommonality: z.number(),
+  totalSbFrequency: z.number(),
   spellingBeeOccurrences: z.array(
     z.object({
       date: z.string(),
       centerLetter: z.string(),
       outerLetters: z.array(z.string()),
+    })
+  ),
+  hyphenates: z.array(
+    z.object({
+      form: z.string(),
+      frequency: z.number(),
+      commonality: z.number(),
     })
   ),
 });

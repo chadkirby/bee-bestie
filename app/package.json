@@ -7,10 +7,10 @@
   "description": "",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "test": "vitest --run",
+    "dev": "pnpm --recursive --filter=@lib/puzzle --filter=@lib/word-freqs run build && vite",
+    "test": "pnpm --recursive --filter=@lib/puzzle --filter=@lib/word-freqs run build && vitest --run",
     "test:watch": "vitest",
-    "build": "vite build",
+    "build": "pnpm --recursive --filter=@lib/puzzle --filter=@lib/word-freqs run build && vite build",
     "preview": "npm run build && vite preview",
     "deploy": "npm run build && wrangler deploy"
   },

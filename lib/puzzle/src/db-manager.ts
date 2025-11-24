@@ -261,6 +261,29 @@ class DbManager {
       minFrequency,
     };
   }
+
+  @memoize(200)
+  async getHyphenates(
+    word: string
+  ): Promise<Array<{ form: string; frequency: number }>> {
+    const stmt = this.db
+      .prepare(
+        `
+        SELECT h.hyphenated_form, wf.frequency
+        FROM hyphenates h
+        LEFT JOIN word_frequencies wf ON h.hyphenated_form = wf.word
+        WHERE h.word = ?
+        ORDER BY wf.frequency DESC
+      `
+      )
+      .bind(word.toLowerCase());
+
+    const results = await stmt.all();
+    return results.results.map((row) => ({
+      form: row.hyphenated_form as string,
+      frequency: (row.frequency as number) || 0,
+    }));
+  }
 }
 
 export type SbHistory = {
