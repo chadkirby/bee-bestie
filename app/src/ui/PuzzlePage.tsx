@@ -173,12 +173,41 @@ export default function PuzzlePage() {
   const [error, setError] = useState<{ type: 'NOT_FOUND' | 'GENERIC'; message: string } | null>(null);
   const [currentDate, setCurrentDate] = useState<DateTime | null>(null);
 
-  // Answer-masking state stored locally to avoid spoilers in shared URLs
-  const [lettersToExpose, setLettersToExpose] = useState<ExposureConfig>({
-    showAll: undefined,
-    startingLetters: 1,
-    endingLetters: 0,
-  });
+  // Answer-masking state
+  // showAll is stored locally to avoid spoilers in shared URLs
+  const [showAll, setShowAll] = useState<boolean>(false);
+
+  // starting/ending letters are stored in URL to allow sharing specific hint views
+  const lettersToExpose: ExposureConfig = useMemo(() => ({
+    showAll: showAll ? true : undefined,
+    startingLetters: parseInt(searchParams.get('start') ?? '1', 10),
+    endingLetters: parseInt(searchParams.get('end') ?? '0', 10),
+  }), [searchParams, showAll]);
+
+  const setLettersToExpose = (config: ExposureConfig) => {
+    // Update local state
+    setShowAll(!!config.showAll);
+
+    // Update URL params
+    const next = new URLSearchParams(searchParams);
+
+    // We explicitly DO NOT sync showAll to the URL
+
+    // Only set if different from defaults to keep URL clean
+    if (config.startingLetters !== 1) {
+      next.set('start', config.startingLetters.toString());
+    } else {
+      next.delete('start');
+    }
+
+    if (config.endingLetters !== 0) {
+      next.set('end', config.endingLetters.toString());
+    } else {
+      next.delete('end');
+    }
+
+    setSearchParams(next, { replace: true });
+  };
 
   // AbortController for cancelling pending words requests
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -341,7 +370,9 @@ export default function PuzzlePage() {
     if (!nextIso) return;
 
     // Navigate to the same tab for the new date, preserving query params
-    navigate(makePuzzleTabUrl(nextIso, tab, location.search));
+    const searchString = searchParams.toString();
+    const search = searchString ? `?${searchString}` : '';
+    navigate(makePuzzleTabUrl(nextIso, tab, search));
   };
 
   if (!date) {
