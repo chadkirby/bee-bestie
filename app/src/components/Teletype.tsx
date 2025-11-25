@@ -12,45 +12,15 @@ interface TeletypeProps {
   outer: string;
   forbiddenWords?: string[];
   className?: string;
+  scorer: PhonotacticScorer | null;
 }
 
-export function Teletype({ center, outer, forbiddenWords = [], className }: TeletypeProps) {
+export function Teletype({ center, outer, forbiddenWords = [], className, scorer }: TeletypeProps) {
   const [currentWord, setCurrentWord] = useState('');
-  const [scorer, setScorer] = useState<PhonotacticScorer | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
 
-  const pool = center + outer;
+  // No internal fetching anymore
 
-  // Load model
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadModel() {
-      try {
-        const res = await client.puzzle[':pool'].phonotactic.$get({
-          param: { pool },
-        });
-        if (!res.ok) throw new Error('Failed to load model');
-
-        const modelData = await res.json();
-        const newScorer = new PhonotacticScorer();
-        // @ts-expect-error JSON import typing
-        newScorer.importModel(modelData);
-
-        if (mounted) {
-          setScorer(newScorer);
-        }
-      } catch (err) {
-        console.error(err);
-        if (mounted) setError('Failed to load word generator');
-      }
-    }
-
-    loadModel();
-
-    return () => { mounted = false; };
-  }, [pool]);
 
   const isPausedRef = useRef(isPaused);
   useEffect(() => {
@@ -172,7 +142,7 @@ export function Teletype({ center, outer, forbiddenWords = [], className }: Tele
     return () => cancelAnimationFrame(animationFrameId);
   }, [scorer, center, outer]);
 
-  if (error) return null;
+  if (!scorer) return null;
 
   return (
     <div className={`relative font-mono text-sm opacity-70 bg-black/5 p-3 rounded-md flex items-center group ${className || ''}`}>

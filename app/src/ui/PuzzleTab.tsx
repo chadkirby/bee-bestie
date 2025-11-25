@@ -8,6 +8,7 @@ import type { ExposureConfig, OnLettersToExposeChange, OnChangeSortBy, OnToggleS
 import { getBeeScore } from '@/lib/utils.ts';
 import { Badge } from '@/components/ui/badge';
 import { Teletype } from '@/components/Teletype';
+import { PhonotacticScorer } from '@lib/word-freqs/phonotactic';
 
 interface PuzzleTabProps {
   puzzle: OnePuzzle;
@@ -19,6 +20,7 @@ interface PuzzleTabProps {
   sortDirection: 'asc' | 'desc';
   onChangeSortBy: OnChangeSortBy;
   onToggleSortDirection: OnToggleSortDirection;
+  scorer: PhonotacticScorer | null;
 }
 
 function ScoringSummary({ totalPoints }: { totalPoints: number }) {
@@ -48,6 +50,7 @@ export function PuzzleTab({
   sortDirection,
   onChangeSortBy,
   onToggleSortDirection,
+  scorer,
 }: PuzzleTabProps) {
   // Create progressive word list: basic puzzle answers enriched with stats when available
   const progressiveWordList: WordRecord[] = puzzle.answers.map(answer => {
@@ -70,10 +73,6 @@ export function PuzzleTab({
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           {/* Left Column: Puzzle Info */}
           <div className="flex flex-col gap-6 flex-1">
-            <CardTitle className="text-base font-semibold text-center sm:text-left">
-              {DateTime.fromISO(puzzle.printDate).toFormat('EEEE')}, {puzzle.displayDate}
-            </CardTitle>
-
             <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:justify-start sm:gap-8">
               {/* Grid and Score Group */}
               <div className="flex items-center gap-6">
@@ -94,6 +93,7 @@ export function PuzzleTab({
                   center={puzzle.centerLetter}
                   outer={puzzle.outerLetters.join('')}
                   forbiddenWords={puzzle.answers}
+                  scorer={scorer}
                   // needs a fixed with so the play/pause button doesn't move as the text changes
                   className="w-40 mx-auto"
                 />

@@ -46,6 +46,13 @@ const WordDetailsResponseSchema = z.object({
 
 export type WordDetailsResponse = z.infer<typeof WordDetailsResponseSchema>;
 
+// Schema for exiles response
+const ExilesResponseSchema = z.object({
+  words: z.array(z.string()),
+});
+
+export type ExilesResponse = z.infer<typeof ExilesResponseSchema>;
+
 const client = hc<AppType>('/');
 
 /**
@@ -126,5 +133,46 @@ export class TabDataService {
     }
 
     return response.json();
+  }
+  /**
+   * Fetch phonotactic model for a given letter pool
+   */
+  static async fetchPhonotacticModel(pool: string, signal?: AbortSignal) {
+    const response = await client.puzzle[':pool'].phonotactic.$get(
+      {
+        param: { pool },
+      },
+      { init: { signal } }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Fetch exiles (valid words not in answers) for a given letter pool
+   */
+  static async fetchExiles(
+    pool: string,
+    requiredLetter: string,
+    signal?: AbortSignal
+  ): Promise<ExilesResponse> {
+    const response = await client.puzzle[':pool'].exiles.$get(
+      {
+        param: { pool },
+        query: { requiredLetter },
+      },
+      { init: { signal } }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return ExilesResponseSchema.parse(data);
   }
 }

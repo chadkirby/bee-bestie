@@ -201,7 +201,7 @@ export function WordExplorer({
                 )}
               </div>
             </div>
-            <dl className={`grid grid-cols-2 gap-x-4 gap-y-2 text-[0.7rem] font-mono text-muted-foreground sm:text-xs sm:grid-cols-${SORT_CONFIGS.length}`}>
+            <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 text-[0.7rem] font-mono text-muted-foreground sm:text-xs">
               {SORT_CONFIGS.map(({ key, label, getValue }) => (
                 <div key={key}>
                   <dt className="text-[0.6rem] uppercase tracking-wide text-muted-foreground">

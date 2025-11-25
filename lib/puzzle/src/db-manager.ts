@@ -284,6 +284,70 @@ class DbManager {
       frequency: (row.frequency as number) || 0,
     }));
   }
+
+  @memoize(100)
+  async getWordsInPool(options: {
+    pool: string;
+    requiredLetter?: string;
+    minFrequency?: number;
+    maxWordLength?: number;
+  }): Promise<string[]> {
+    const {
+      pool,
+      requiredLetter,
+      minFrequency = 100,
+      maxWordLength = 12,
+    } = options;
+    // Pool is 7 letters. We need to find all words in word_frequencies
+    // that ONLY contain letters from this pool.
+    // SQLite GLOB or LIKE isn't great for "only contains these characters".
+    // But we can use a regex-like approach if we had REGEXP, which D1 might not support fully yet.
+    // Alternatively, we can fetch candidates and filter in JS, but that's heavy if table is huge.
+    //
+    // Actually, for a 7-letter pool, we can't easily query "contains only these letters" in standard SQL
+    // without a custom function or a very long OR chain which doesn't work for "only".
+    //
+    // WAIT: The user hint said "retrieve words... that do not include any letters outside of the puzzle pool".
+    //
+    // A trick for "only contains letters from pool":
+    // specific to SQLite:
+    // SELECT word FROM word_frequencies WHERE word NOT GLOB '*[^pool]*'
+    //
+    // Let's try the GLOB approach. The pool string needs to be formatted for the GLOB set syntax.
+    // If pool is "abcdefg", the glob pattern for "contains a char NOT in pool" is '*[^abcdefg]*'.
+    // So we want words where NOT (word GLOB '*[^abcdefg]*').
+
+    const poolSet = pool.toLowerCase();
+    const globPattern = `*[^${poolSet}]*`;
+
+    const stmt = this.db
+      .prepare(
+        `
+        SELECT word
+        FROM word_frequencies
+        WHERE word NOT GLOB ?
+        AND length(word) >= 4
+        AND frequency >= ?
+        AND length(word) <= ?
+      `
+      )
+      .bind(globPattern, minFrequency, maxWordLength);
+
+    const results = await stmt.all();
+    let words = results.results
+      .map((row) => row.word as string)
+      // filter out bogus words like "aaa"
+      .filter((w) => !/(\w{1,2})\1\1/.test(w));
+
+    // Filter by required letter if specified
+    if (requiredLetter) {
+      words = words.filter((word) =>
+        word.includes(requiredLetter.toLowerCase())
+      );
+    }
+
+    return words;
+  }
 }
 
 export type SbHistory = {

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { DateTime } from 'luxon';
 import { getDbManager } from '@lib/puzzle';
 import { z } from 'zod/mini';
+import { zValidator } from '@hono/zod-validator';
 import {
   getWordStats,
   computeCommonality,
@@ -13,6 +14,72 @@ import { PhonotacticScorer } from '@lib/word-freqs/phonotactic';
 function isPangram(word: string): boolean {
   return new Set(word).size === 7;
 }
+
+// Response schemas for OpenAPI documentation
+const ExilesResponseSchema = z.object({
+  words: z.array(z.string()),
+});
+
+const PuzzleResponseSchema = z.object({
+  puzzle: z.object({
+    displayDate: z.string(),
+    printDate: z.string(),
+    centerLetter: z.string(),
+    outerLetters: z.array(z.string()),
+    validLetters: z.array(z.string()),
+    pangrams: z.array(z.string()),
+    answers: z.array(z.string()),
+  }),
+});
+
+const WordStatsResponseSchema = z.object({
+  wordStats: z.array(
+    z.object({
+      word: z.string(),
+      found: z.boolean(),
+      frequency: z.number(),
+      commonality: z.number(),
+      probability: z.number(),
+      sbHistory: z.array(z.string()),
+    })
+  ),
+});
+
+const WordDetailsResponseSchema = z.object({
+  word: z.string(),
+  frequency: z.number(),
+  totalWikipediaFrequency: z.number(),
+  commonality: z.number(),
+  obscurity: z.number(),
+  probability: z.number(),
+  sbCommonality: z.number(),
+  totalSbFrequency: z.number(),
+  spellingBeeOccurrences: z.array(
+    z.object({
+      date: z.string(),
+      centerLetter: z.string(),
+      outerLetters: z.array(z.string()),
+    })
+  ),
+  hyphenates: z.array(
+    z.object({
+      form: z.string(),
+      frequency: z.number(),
+      commonality: z.number(),
+    })
+  ),
+});
+
+const PhonotacticResponseSchema = z.object({
+  charTransitions: z.record(z.string(), z.record(z.string(), z.number())),
+  syllableBigrams: z.record(z.string(), z.record(z.string(), z.number())),
+});
+
+const ExilesPoolSchema = z.object({
+  requiredLetter: z.optional(
+    z.string().check(z.refine((val) => /^[a-z]$/i.test(val)))
+  ),
+});
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -40,6 +107,38 @@ const app = new Hono<{ Bindings: Env }>()
       return c.text('Error generating model', 500);
     }
   })
+
+  // Exiles endpoint: Get all valid words for a pool (including those not in answers)
+  .get(
+    '/puzzle/:pool/exiles',
+    zValidator('query', ExilesPoolSchema),
+    async (c) => {
+      const pool = c.req.param('pool');
+      const { requiredLetter } = c.req.valid('query');
+
+      // Validation: pool must be 7 letters
+      if (!/^[a-z]{7}$/i.test(pool)) {
+        return c.notFound();
+      }
+
+      try {
+        const dbMgr = getDbManager(c.env.BEE_PUZZLES);
+        const words = await dbMgr.getWordsInPool({
+          pool,
+          requiredLetter: requiredLetter?.toLowerCase(),
+          minFrequency: 250,
+        });
+
+        // Return directly - Hono client will infer the type from this literal structure
+        return c.json({ words }, 200, {
+          'Cache-Control': 'public, max-age=86400', // Cache for 1 day
+        });
+      } catch (error) {
+        console.error('Error fetching exiles:', error);
+        return c.text('Error fetching exiles', 500);
+      }
+    }
+  )
 
   // Word statistics endpoint
   .get('/puzzle/:date/word-stats', async (c) => {

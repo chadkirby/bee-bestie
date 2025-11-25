@@ -7,11 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateNavigation } from '@/components/DateNavigation';
 import { type WordStatsRecord, type SortKey } from '@/components/WordExplorer';
 import { PuzzleTab } from './PuzzleTab';
+import { GalaxyTab } from './GalaxyTab';
 import { TabDataService } from '@/services/tabDataService';
 import { getBeeScore } from '@/lib/utils.ts';
 import type { ExposureConfig } from './types';
 import { hc } from 'hono/client';
 import type { AppType } from '../worker/index';
+import { PhonotacticScorer } from '@lib/word-freqs/phonotactic';
 
 const client = hc<AppType>('/');
 
@@ -20,7 +22,8 @@ const PuzzleResponseSchema = z.object({
   puzzle: z.any(), // OnePuzzle will be validated by HistoryTab
 });
 
-const PuzzleTabNames = { words: 'words', hints: 'hints', semantics: 'semantics' } as const;
+const PuzzleTabNames = { answers: 'answers', beedar: 'beedar' } as const;
+
 
 type PuzzleTab = keyof typeof PuzzleTabNames;
 
@@ -38,7 +41,7 @@ function getLatestAvailableDate(): DateTime {
 export function RedirectToToday() {
   const latestIso = getLatestAvailableDate().toISODate();
   if (!latestIso) return null;
-  return <Navigate to={makePuzzleTabUrl(latestIso, 'words')} replace />;
+  return <Navigate to={makePuzzleTabUrl(latestIso, 'answers')} replace />;
 }
 
 function PuzzleNotFound({ date }: { date: DateTime }) {
@@ -120,7 +123,7 @@ function PuzzleNotFound({ date }: { date: DateTime }) {
 
 function PuzzleSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse">
+    <div className="space-y-2 animate-pulse">
       <Card>
         <CardHeader>
           <div className="h-6 w-48 rounded bg-muted" />
@@ -161,7 +164,7 @@ export default function PuzzlePage() {
   const tab: PuzzleTab =
     Object.keys(PuzzleTabNames).includes(tabParam || '')
       ? (tabParam as PuzzleTab)
-      : PuzzleTabNames.words;
+      : PuzzleTabNames.answers;
 
   const [loading, setLoading] = useState(false);
   const [loadingWordStats, setLoadingWordStats] = useState(false);
@@ -224,10 +227,40 @@ export default function PuzzlePage() {
     }
   };
 
+  // Phonotactic Scorer state
+  const [scorer, setScorer] = useState<PhonotacticScorer | null>(null);
+
+  // Fetch Phonotactic Scorer when puzzle data is available
+  useEffect(() => {
+    if (!puzzleData) return;
+
+    let mounted = true;
+    const pool = puzzleData.centerLetter + puzzleData.outerLetters.join('');
+
+    async function loadModel() {
+      try {
+        const modelData = await TabDataService.fetchPhonotacticModel(pool);
+        const newScorer = new PhonotacticScorer();
+        // @ts-expect-error JSON import typing
+        newScorer.importModel(modelData);
+
+        if (mounted) {
+          setScorer(newScorer);
+        }
+      } catch (err) {
+        console.error('Failed to load phonotactic model:', err);
+      }
+    }
+
+    loadModel();
+
+    return () => { mounted = false; };
+  }, [puzzleData]);
+
   // Slow fetch: Word statistics only
   const fetchWordStats = async (isoDate: string) => {
     // Only fetch word stats for words tab
-    if (tab !== 'words') return;
+    if (tab !== 'answers') return;
 
     // Cancel any existing request
     if (abortControllerRef.current) {
@@ -289,7 +322,7 @@ export default function PuzzlePage() {
 
   // When puzzle data is loaded and we're on puzzle tab, fetch word stats
   useEffect(() => {
-    if (puzzleData && tab === 'words') {
+    if (puzzleData && tab === 'answers') {
       fetchWordStats(puzzleData.printDate);
     }
   }, [puzzleData, tab]);
@@ -316,52 +349,44 @@ export default function PuzzlePage() {
   }
 
   return (
-    <div className="app">
-      <div className="mx-auto max-w-4xl px-4 mt-2">
-        <h1 className="text-3xl font-bold">Bee Bestie</h1>
+    <>
+      <div className="mx-auto max-w-4xl px-4 py-2">
 
-        <div className="mt-4 mb-6">
+        <div className="mt-0 mb-2">
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Puzzle date
-              </span>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:w-full md:w-auto md:justify-start md:gap-4">
               {currentDate && (
-                <DateNavigation
-                  currentDate={currentDate}
-                  latestAvailableDate={getLatestAvailableDate()}
-                  onDateChange={handleDateChange}
-                />
+                <>
+                  <h2 className="text-xl font-bold tracking-tight">
+                    {currentDate.toFormat('EEEE, MMMM d, yyyy')}
+                  </h2>
+                  <DateNavigation
+                    currentDate={currentDate}
+                    latestAvailableDate={getLatestAvailableDate()}
+                    onDateChange={handleDateChange}
+                  />
+                </>
               )}
             </div>
 
             <nav className="flex gap-4 text-sm">
               <NavLink
-                to={makePuzzleTabUrl(date, 'words', location.search)}
+                to={makePuzzleTabUrl(date, 'answers', location.search)}
                 className={({ isActive }) =>
                   `pb-2 border-b-2 ${isActive ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground'
                   }`
                 }
               >
-                Words
+                Answers
               </NavLink>
               <NavLink
-                to={makePuzzleTabUrl(date, 'hints', location.search)}
+                to={makePuzzleTabUrl(date, 'beedar', location.search)}
                 className={({ isActive }) =>
                   `pb-2 border-b-2 ${isActive ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground'
                   }`
                 }
               >
-                Hints
-              </NavLink>
-              <NavLink
-                to={makePuzzleTabUrl(date, 'semantics', location.search)}
-                className={({ isActive }) =>
-                  `pb-2 border-b-2 ${isActive ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground'
-                  }`
-                }
-              >
-                Semantics
+                BeeDar
               </NavLink>
             </nav>
           </div>
@@ -372,10 +397,10 @@ export default function PuzzlePage() {
         )}
 
         {puzzleData && currentDate && (
-          <div className="space-y-6">
+          <div className="space-y-2">
 
 
-            {tab === 'words' && (
+            {tab === 'answers' && (
               <>
                 <PuzzleTab
                   puzzle={puzzleData}
@@ -387,30 +412,13 @@ export default function PuzzlePage() {
                   sortDirection={sortDirection}
                   onChangeSortBy={handleChangeSortBy}
                   onToggleSortDirection={handleToggleSortDirection}
+                  scorer={scorer}
                 />
               </>
             )}
 
-            {tab === 'hints' && !error && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Hints</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>Hints view coming soon.</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {tab === 'semantics' && !error && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Word Semantics</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>Word semantics view coming soon.</p>
-                </CardContent>
-              </Card>
+            {tab === 'beedar' && !error && (
+              <GalaxyTab puzzle={puzzleData} scorer={scorer} />
             )}
           </div>
         )}
@@ -434,7 +442,7 @@ export default function PuzzlePage() {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -443,5 +451,5 @@ export function PuzzleRedirect() {
   if (!date) {
     return <RedirectToToday />;
   }
-  return <Navigate to={makePuzzleTabUrl(date, 'words')} replace />;
+  return <Navigate to={makePuzzleTabUrl(date, 'answers')} replace />;
 }
