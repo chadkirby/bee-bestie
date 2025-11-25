@@ -449,7 +449,12 @@ export default function PuzzlePage() {
             )}
 
             {tab === 'beedar' && !error && (
-              <GalaxyTab puzzle={puzzleData} scorer={scorer} />
+              <GalaxyTab
+                puzzle={puzzleData}
+                scorer={scorer}
+                lettersToExpose={lettersToExpose}
+                onLettersToExposeChange={setLettersToExpose}
+              />
             )}
           </div>
         )}

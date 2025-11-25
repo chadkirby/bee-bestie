@@ -35,6 +35,7 @@
     "@hono/zod-validator": "catalog:",
     "@lib/puzzle": "workspace:*",
     "@lib/word-freqs": "workspace:*",
+    "@radix-ui/react-checkbox": "catalog:",
     "@radix-ui/react-label": "catalog:",
     "@radix-ui/react-separator": "catalog:",
     "@radix-ui/react-slider": "catalog:",

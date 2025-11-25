@@ -11,15 +11,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import type { ExposureConfig } from "@/ui/types";
+import { AnswerItem } from "@/components/AnswerItem";
 
 interface GalaxyPlotProps {
   data: GalaxyPoint[];
   // The 7 letters representing the slices, sorted alphabetically
-  // The 7 letters representing the slices, sorted alphabetically
   sortedLetters: string[];
   className?: string;
   showExiles: boolean;
-  onToggleExiles: (show: boolean) => void;
+  lettersToExpose: ExposureConfig;
 }
 
 export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
@@ -27,7 +28,7 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
   sortedLetters,
   className = "",
   showExiles,
-  onToggleExiles
+  lettersToExpose
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -117,20 +118,6 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
 
   return (
     <div className={`relative w-full h-full ${className}`}>
-      {/* Show/Hide Exiles Control - Absolute Top Left */}
-      <div className="absolute top-0 left-0 z-20 flex items-center gap-2 px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-md border border-gray-200 shadow-sm">
-        <label htmlFor="show-exiles" className="flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 select-none">
-          <input
-            type="checkbox"
-            id="show-exiles"
-            checked={showExiles}
-            onChange={(e) => onToggleExiles(e.target.checked)}
-            className="w-3.5 h-3.5 rounded border-gray-300 text-amber-500 focus:ring-1 focus:ring-amber-500/50 focus:ring-offset-0 cursor-pointer"
-          />
-          Show Exiles
-        </label>
-      </div>
-
       {/* Galaxy Plot Container */}
       <div ref={containerRef} className="w-full h-full min-h-[400px]">
         {dimensions.width > 0 && (
@@ -213,7 +200,10 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
                         </TooltipTrigger>
                         <TooltipContent>
                           <div className="text-sm">
-                            <p className="font-bold capitalize">{dot.word} ({dot.word.length})</p>
+                            <div className="font-bold capitalize">
+                              <AnswerItem answer={dot.word} lettersToExpose={lettersToExpose} />
+                              <span className="ml-1 text-xs font-normal text-muted-foreground">({dot.word.length})</span>
+                            </div>
                             <p className="text-xs text-muted-background">
                               {dot.type === 'ANSWER' ? 'Accepted Answer' : 'Wikipedia word not in answer list'}
                             </p>

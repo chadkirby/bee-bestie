@@ -6,22 +6,33 @@ import { PhonotacticScorer } from '@lib/word-freqs/phonotactic';
 import { LetterGrid } from '@/components/LetterGrid';
 import { useSearchParams } from 'react-router-dom';
 import { useCallback } from 'react';
+import type { ExposureConfig, OnLettersToExposeChange } from './types';
+import { RevealControls } from '@/components/RevealControls';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface GalaxyTabProps {
   puzzle: OnePuzzle;
   scorer: PhonotacticScorer | null;
+  lettersToExpose: ExposureConfig;
+  onLettersToExposeChange: OnLettersToExposeChange;
 }
 
-export function GalaxyTab({ puzzle, scorer }: GalaxyTabProps) {
+export function GalaxyTab({
+  puzzle,
+  scorer,
+  lettersToExpose,
+  onLettersToExposeChange
+}: GalaxyTabProps) {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Default to true if not specified
   const showExiles = searchParams.get('exiles') !== 'false';
 
-  const handleToggleExiles = useCallback((show: boolean) => {
+  const handleToggleExiles = useCallback((checked: boolean) => {
     setSearchParams(prev => {
       const newParams = new URLSearchParams(prev);
-      if (show) {
+      if (checked) {
         newParams.delete('exiles'); // Default is true, so remove param to keep URL clean
       } else {
         newParams.set('exiles', 'false');
@@ -38,18 +49,38 @@ export function GalaxyTab({ puzzle, scorer }: GalaxyTabProps) {
   });
 
   return (
-    <Card className="h-[900px] flex flex-col">
-      <CardHeader>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle>BeeDar</CardTitle>
-          <div className="flex items-center gap-4">
+    <Card className="h-[620px] md:h-[900px] flex flex-col">
+      <CardHeader className="pb-2">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          {/* Title - Order 1 */}
+          <CardTitle className="order-1">BeeDar</CardTitle>
 
-            <div className="scale-75 sm:scale-90 origin-center sm:origin-right">
-              <LetterGrid
-                centerLetter={puzzle.centerLetter.toUpperCase()}
-                outerLetters={puzzle.outerLetters.map((letter) => letter.toUpperCase())}
+          {/* LetterGrid - Order 2 on mobile (right of title), Order 3 on desktop (far right) */}
+          <div className="order-2 md:order-3 scale-75 md:scale-90 origin-right">
+            <LetterGrid
+              centerLetter={puzzle.centerLetter.toUpperCase()}
+              outerLetters={puzzle.outerLetters.map((letter) => letter.toUpperCase())}
+            />
+          </div>
+
+          {/* Controls - Order 3 on mobile (new row), Order 2 on desktop (middle) */}
+          <div className="order-3 md:order-2 w-full md:w-auto md:flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-8">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="show-exiles"
+                checked={showExiles}
+                onCheckedChange={(checked) => handleToggleExiles(checked === true)}
               />
+              <Label htmlFor="show-exiles" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Show Exiles
+              </Label>
             </div>
+
+            <RevealControls
+              lettersToExpose={lettersToExpose}
+              onLettersToExposeChange={onLettersToExposeChange}
+              className="w-full sm:w-auto sm:justify-center sm:max-w-xs md:max-w-md"
+            />
           </div>
         </div>
       </CardHeader>
@@ -64,7 +95,7 @@ export function GalaxyTab({ puzzle, scorer }: GalaxyTabProps) {
           sortedLetters={sortedLetters}
           className="w-full h-full"
           showExiles={showExiles}
-          onToggleExiles={handleToggleExiles}
+          lettersToExpose={lettersToExpose}
         />
       </CardContent>
     </Card>
