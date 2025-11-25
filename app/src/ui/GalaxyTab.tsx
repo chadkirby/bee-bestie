@@ -4,6 +4,8 @@ import { useGalaxyData } from '@/components/galaxy/useGalaxyData';
 import { OnePuzzle } from '@lib/puzzle';
 import { PhonotacticScorer } from '@lib/word-freqs/phonotactic';
 import { LetterGrid } from '@/components/LetterGrid';
+import { useSearchParams } from 'react-router-dom';
+import { useCallback } from 'react';
 
 interface GalaxyTabProps {
   puzzle: OnePuzzle;
@@ -11,6 +13,23 @@ interface GalaxyTabProps {
 }
 
 export function GalaxyTab({ puzzle, scorer }: GalaxyTabProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Default to true if not specified
+  const showExiles = searchParams.get('exiles') !== 'false';
+
+  const handleToggleExiles = useCallback((show: boolean) => {
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev);
+      if (show) {
+        newParams.delete('exiles'); // Default is true, so remove param to keep URL clean
+      } else {
+        newParams.set('exiles', 'false');
+      }
+      return newParams;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const { points, loading, sortedLetters } = useGalaxyData({
     centerLetter: puzzle.centerLetter,
     outerLetters: puzzle.outerLetters,
@@ -44,6 +63,8 @@ export function GalaxyTab({ puzzle, scorer }: GalaxyTabProps) {
           data={points}
           sortedLetters={sortedLetters}
           className="w-full h-full"
+          showExiles={showExiles}
+          onToggleExiles={handleToggleExiles}
         />
       </CardContent>
     </Card>

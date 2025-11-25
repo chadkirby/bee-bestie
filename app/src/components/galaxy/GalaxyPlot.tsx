@@ -15,15 +15,23 @@ import {
 interface GalaxyPlotProps {
   data: GalaxyPoint[];
   // The 7 letters representing the slices, sorted alphabetically
+  // The 7 letters representing the slices, sorted alphabetically
   sortedLetters: string[];
   className?: string;
+  showExiles: boolean;
+  onToggleExiles: (show: boolean) => void;
 }
 
-export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({ data, sortedLetters, className = "" }) => {
+export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
+  data,
+  sortedLetters,
+  className = "",
+  showExiles,
+  onToggleExiles
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [showExiles, setShowExiles] = useState(true);
 
   // 1. Handle responsiveness
   useEffect(() => {
@@ -49,10 +57,12 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({ data, sortedLetters, cla
   const layout = useGalaxyLayout({
     width: dimensions.width,
     height: dimensions.height,
-    data: filteredData
+    data: filteredData,
+    allData: data,
+    sortedLetters
   });
 
-  const { centerX, centerY, sliceAngleSize, radiusScale, minLen, maxLen, letterDots, letterPaths } = layout;
+  const { centerX, centerY, radiusScale, minLen, maxLen, letterDots, letterPaths, sectors } = layout;
 
   // 4. Split letter dots into leaf (interactive) and non-leaf (canvas only)
   const { leafNodes, nonLeafNodes } = useMemo(() => {
@@ -114,7 +124,7 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({ data, sortedLetters, cla
             type="checkbox"
             id="show-exiles"
             checked={showExiles}
-            onChange={(e) => setShowExiles(e.target.checked)}
+            onChange={(e) => onToggleExiles(e.target.checked)}
             className="w-3.5 h-3.5 rounded border-gray-300 text-amber-500 focus:ring-1 focus:ring-amber-500/50 focus:ring-offset-0 cursor-pointer"
           />
           Show Exiles
@@ -151,25 +161,22 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({ data, sortedLetters, cla
                 })}
 
                 {/* BACKGROUND: Central Letter Labels */}
-                {sortedLetters.map((letter, i) => {
-                  const angle = (i * sliceAngleSize) - (Math.PI / 2);
-                  const centerAngle = angle + sliceAngleSize / 2;
-
+                {sectors.map((sector) => {
                   // Place labels inside the inner hole
                   const labelR = 35;
-                  const labelX = labelR * Math.cos(centerAngle);
-                  const labelY = labelR * Math.sin(centerAngle);
+                  const labelX = labelR * Math.cos(sector.centerAngle);
+                  const labelY = labelR * Math.sin(sector.centerAngle);
 
                   return (
                     <text
-                      key={`label-${letter}`}
+                      key={`label-${sector.letter}`}
                       x={labelX}
                       y={labelY}
                       textAnchor="middle"
                       dominantBaseline="middle"
                       className="font-bold fill-gray-400 text-lg pointer-events-none"
                     >
-                      {letter.toUpperCase()}
+                      {sector.letter.toUpperCase()}
                     </text>
                   );
                 })}

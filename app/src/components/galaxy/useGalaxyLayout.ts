@@ -7,6 +7,8 @@ interface LayoutProps {
   width: number;
   height: number;
   data: GalaxyPoint[];
+  allData: GalaxyPoint[];
+  sortedLetters: string[];
 }
 
 // Letter dot: represents a single character position in a word
@@ -22,6 +24,8 @@ export interface LetterDot {
   score: number; // For tooltip
   rho: number; // Polar radius
   angle: number; // Polar angle
+  parent?: LetterDot;
+  children: LetterDot[];
 }
 
 // Letter path: represents a line from one letter to the next
@@ -34,7 +38,13 @@ export interface LetterPath {
   type: PointType;
 }
 
-export const useGalaxyLayout = ({ width, height, data }: LayoutProps) => {
+export const useGalaxyLayout = ({
+  width,
+  height,
+  data,
+  allData,
+  sortedLetters,
+}: LayoutProps) => {
   const centerX = width / 2;
   const centerY = height / 2;
   // Leave padding for tooltips
@@ -62,151 +72,240 @@ export const useGalaxyLayout = ({ width, height, data }: LayoutProps) => {
 
   // --- HELPER FUNCTIONS ---
 
-  const sliceAngleSize = (2 * Math.PI) / 7;
+  // --- SECTOR CALCULATION ---
+  // Calculate dynamic sector sizes based on word counts
+  const sectors = useMemo(() => {
+    // 1. Calculate counts
+    const counts = new Map<string, number>();
+    sortedLetters.forEach((l) => counts.set(l.toLowerCase(), 0));
+
+    allData.forEach((p) => {
+      const firstChar = p.word[0].toLowerCase();
+      counts.set(firstChar, (counts.get(firstChar) || 0) + 1);
+    });
+
+    // 2. Smart Ordering: Interleave most and least popular
+    // This separates dense sectors with sparse ones to reduce collisions
+    const lettersByCount = [...sortedLetters].sort((a, b) => {
+      const countA = counts.get(a.toLowerCase()) || 0;
+      const countB = counts.get(b.toLowerCase()) || 0;
+      return countB - countA; // Descending
+    });
+
+    const orderedLetters: string[] = [];
+    let left = 0;
+    let right = lettersByCount.length - 1;
+    while (left <= right) {
+      if (left === right) {
+        orderedLetters.push(lettersByCount[left]);
+      } else {
+        orderedLetters.push(lettersByCount[left]);
+        orderedLetters.push(lettersByCount[right]);
+      }
+      left++;
+      right--;
+    }
+
+    // 3. Generate Sectors
+    const totalWords = allData.length;
+    const minAngle = (2 * Math.PI) / 14;
+    const totalMinAngle = minAngle * 7;
+    const remainingAngle = 2 * Math.PI - totalMinAngle;
+
+    let currentAngle = -Math.PI / 2;
+
+    return orderedLetters.map((letter) => {
+      const count = counts.get(letter.toLowerCase()) || 0;
+      const proportion = totalWords > 0 ? count / totalWords : 0;
+      const allocatedAngle = minAngle + remainingAngle * proportion;
+
+      const start = currentAngle;
+      const end = currentAngle + allocatedAngle;
+      const center = start + allocatedAngle / 2;
+
+      currentAngle += allocatedAngle;
+
+      return {
+        letter,
+        startAngle: start,
+        endAngle: end,
+        centerAngle: center,
+      };
+    });
+  }, [allData, sortedLetters]);
+
+  const getSectorCenter = (letter: string) => {
+    const sector = sectors.find(
+      (s) => s.letter.toLowerCase() === letter.toLowerCase()
+    );
+    return sector ? sector.centerAngle : 0;
+  };
 
   // Generate all letter dots and paths for the dataset
   const { letterDots, letterPaths } = useMemo(() => {
     const nodeMap = new Map<string, LetterDot>();
-    const deviationFactor = 0.1;
+    // Deviation factor: determines how much the angle changes based on letter difference
+    // Reduced to keep trails tighter and within sectors
+    // const deviationFactor = 0.05; // This is no longer used
 
-    // 1. Generate unique nodes (prefixes)
+    // 1. Build the Tree (Nodes & Links)
     data.forEach((point) => {
-      const sliceStartAngle = point.sliceIndex * sliceAngleSize - Math.PI / 2;
-      const sliceCenterAngle = sliceStartAngle + sliceAngleSize / 2;
-
       let prefix = '';
+      let parentNode: LetterDot | undefined;
 
       for (let i = 0; i < point.word.length; i++) {
         const char = point.word[i];
         prefix += char;
 
-        // If node already exists, we might need to update it if it's a leaf for THIS word
         let node = nodeMap.get(prefix);
 
         if (!node) {
-          // Calculate position from scratch
-          // Note: The angle calculation depends on the depth 'i'
-          // All previous diffs are weighted by the current depth factor
-          let cumulativeAngle = sliceCenterAngle;
-          for (let j = 1; j <= i; j++) {
-            const diff =
-              point.word.charCodeAt(j) - point.word.charCodeAt(j - 1);
-            cumulativeAngle += diff * deviationFactor ** (1 + i / 7);
-          }
-
+          // Calculate rho (radius)
           const letterPosition = i + 1;
           let rho: number;
           if (letterPosition < minLen) {
-            const startRadius = 10;
+            const startRadius = 15;
             const progress = (letterPosition - 1) / (minLen - 1);
             rho = startRadius + progress * (innerHoleRadius - startRadius);
           } else {
             rho = radiusScale(Math.min(letterPosition, maxLen));
           }
 
-          const x = centerX + rho * Math.cos(cumulativeAngle);
-          const y = centerY + rho * Math.sin(cumulativeAngle);
-
           node = {
-            x,
-            y,
+            x: 0, // Will be calculated later
+            y: 0,
             letter: char,
-            word: prefix, // Default to prefix, will be overwritten if leaf
-            wordId: '', // Placeholder
+            word: prefix,
+            wordId: '',
             letterIndex: i,
-            type: point.type, // Default to current type, prioritize ANSWER later?
+            type: point.type, // Default, might be upgraded to ANSWER
             isLeaf: false,
             score: 0,
             rho,
-            angle: cumulativeAngle,
+            angle: 0, // Will be calculated later
+            parent: parentNode,
+            children: [],
           };
+
+          if (parentNode) {
+            parentNode.children.push(node);
+          }
+
           nodeMap.set(prefix, node);
         }
 
-        // If this is the last letter of the current word, mark it as a leaf
+        // Update node properties if this word makes it a leaf or an ANSWER
         if (i === point.word.length - 1) {
           node.isLeaf = true;
           node.word = point.word;
           node.wordId = point.id;
-          node.type = point.type;
           node.score = point.score;
+          // Upgrade type to ANSWER if ANY word sharing this node is an answer
+          // (Though usually leaf nodes are unique to a word, unless duplicates exist)
+          if (point.type === 'ANSWER') node.type = 'ANSWER';
+        } else {
+          // For intermediate nodes, if they are part of an ANSWER path,
+          // we might want to color them? For now, keep as is.
+          if (point.type === 'ANSWER' && node.type !== 'ANSWER') {
+            // Optional: Upgrade intermediate nodes to ANSWER type if they lead to an answer?
+            // node.type = 'ANSWER';
+          }
         }
+
+        parentNode = node;
       }
     });
 
     const allDots = Array.from(nodeMap.values());
 
-    // 2. Resolve collisions for leaf nodes
-    // Group leaf nodes by their ring (approximate rho)
-    const leafNodes = allDots.filter((d) => d.isLeaf);
-    const nodesByRing = d3.group(leafNodes, (d) => Math.round(d.rho));
+    // 2. Layout Level by Level
+    // Group by depth (letterIndex)
+    const maxDepth = d3.max(allDots, (d) => d.letterIndex) ?? 0;
 
-    nodesByRing.forEach((nodes) => {
-      if (nodes.length <= 1) return;
+    for (let depth = 0; depth <= maxDepth; depth++) {
+      const nodesAtDepth = allDots.filter((d) => d.letterIndex === depth);
 
-      const rho = nodes[0].rho;
-      // Minimum arc length for separation (approx 20px)
-      const minArc = 20;
+      // A. Calculate Ideal Angles (Inherit from parent + tiny jitter)
+      // Group by parent to handle siblings
+      const nodesByParent = d3.group(nodesAtDepth, (d) => d.parent);
+
+      nodesByParent.forEach((children, parent) => {
+        if (!parent) {
+          // Roots: Fixed at slice center
+          children.forEach((node) => {
+            // Use the dynamic sector center for the first letter
+            node.angle = getSectorCenter(node.letter);
+          });
+        } else {
+          // Children: Start at parent's FINAL angle
+          // Sort siblings to ensure deterministic spread direction
+          children.sort((a, b) => a.letter.localeCompare(b.letter));
+
+          const count = children.length;
+          // Very small jitter to break symmetry and allow collision algo to do the work
+          const jitter = 0.01;
+
+          children.forEach((child, i) => {
+            // Center the jitter around the parent's angle
+            const offset = (i - (count - 1) / 2) * jitter;
+            child.angle = parent.angle + offset;
+          });
+        }
+      });
+
+      // B. Resolve Collisions for THIS depth
+      // Sort by angle to find neighbors
+      nodesAtDepth.sort((a, b) => a.angle - b.angle);
+
+      const rho = nodesAtDepth[0]?.rho || 100;
+      const minArc = 14; // Minimum distance between dots (pixels)
       const minAngle = minArc / rho;
 
       // Iterative relaxation
       for (let iter = 0; iter < 10; iter++) {
-        // Sort by angle
-        nodes.sort((a, b) => a.angle - b.angle);
-
-        for (let i = 0; i < nodes.length; i++) {
-          const a = nodes[i];
-          const b = nodes[(i + 1) % nodes.length];
+        let moved = false;
+        for (let i = 0; i < nodesAtDepth.length - 1; i++) {
+          const a = nodesAtDepth[i];
+          const b = nodesAtDepth[i + 1];
 
           let diff = b.angle - a.angle;
-          if (diff < 0) diff += 2 * Math.PI; // Wrap around
+
+          // Check for wrap-around collision (important for full circles)
+          // But here we mostly care about local collisions.
+          // If we want to support 360 wrap, we should check last vs first too.
+          // For now, linear check is usually sufficient given the sector layout.
 
           if (diff < minAngle) {
             const overlap = minAngle - diff;
             const move = overlap / 2;
 
-            // Move apart
+            // Push apart
             a.angle -= move;
             b.angle += move;
-
-            // Normalize angles to keep them well-behaved
-            a.angle = ((a.angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-            b.angle = ((b.angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+            moved = true;
           }
         }
+        if (!moved) break;
       }
 
-      // Apply new positions
-      nodes.forEach((node) => {
+      // Update coordinates
+      nodesAtDepth.forEach((node) => {
         node.x = centerX + node.rho * Math.cos(node.angle);
         node.y = centerY + node.rho * Math.sin(node.angle);
       });
-    });
+    }
 
-    // 3. Generate paths from adjusted dots
+    // 3. Generate Paths
     const allPaths: LetterPath[] = [];
-
-    data.forEach((point) => {
-      // Reconstruct the sequence of nodes for this word
-      const dots: LetterDot[] = [];
-      let prefix = '';
-      for (const char of point.word) {
-        prefix += char;
-        const node = nodeMap.get(prefix);
-        if (node) dots.push(node);
-      }
-
-      // Create path segments
-      for (let i = 0; i < dots.length - 1; i++) {
-        const current = dots[i];
-        const next = dots[i + 1];
+    allDots.forEach((node) => {
+      if (node.parent) {
         allPaths.push({
-          x1: current.x,
-          y1: current.y,
-          x2: next.x,
-          y2: next.y,
-          wordId: point.id,
-          type: point.type,
+          x1: node.parent.x,
+          y1: node.parent.y,
+          x2: node.x,
+          y2: node.y,
+          wordId: node.wordId, // Use the node's wordId (might be empty if intermediate)
+          type: node.type,
         });
       }
     });
@@ -220,7 +319,8 @@ export const useGalaxyLayout = ({ width, height, data }: LayoutProps) => {
     centerY,
     minLen,
     innerHoleRadius,
-    sliceAngleSize,
+    sectors,
+    sortedLetters,
   ]);
 
   return {
@@ -228,7 +328,7 @@ export const useGalaxyLayout = ({ width, height, data }: LayoutProps) => {
     centerY,
     maxRadius,
     radiusScale,
-    sliceAngleSize,
+    sectors,
     minLen,
     maxLen,
     letterDots,
@@ -237,7 +337,10 @@ export const useGalaxyLayout = ({ width, height, data }: LayoutProps) => {
 };
 
 // --- STYLING HELPERS ---
-export function getColor(type: PointType, opacity: number = 0.25) {
+export function getColor(
+  type: PointType,
+  opacity: number = 0.25
+): `rgba(${number}, ${number}, ${number}, ${number})` {
   switch (type) {
     case 'ANSWER':
       // Tailwind yellow-400
