@@ -36,6 +36,7 @@ export interface LetterPath {
   y2: number;
   wordId: string;
   type: PointType;
+  rootLetter: string; // The starting letter of the word this path belongs to
 }
 
 export const useGalaxyLayout = ({
@@ -112,7 +113,7 @@ export const useGalaxyLayout = ({
         centerAngle: center,
       };
     });
-  }, [allData, sortedLetters]);
+  }, [data, sortedLetters]);
 
   const getSectorCenter = (letter: string) => {
     const sector = sectors.find(
@@ -284,6 +285,7 @@ export const useGalaxyLayout = ({
         y2: node.y,
         wordId: node.wordId,
         type: node.type,
+        rootLetter: node.word[0], // Store the root letter for coloring
       }));
 
     return { letterDots: allDots, letterPaths: allPaths };
@@ -297,7 +299,6 @@ export const useGalaxyLayout = ({
     innerHoleRadius,
     sectors,
     sortedLetters,
-    allData, // Added dependency
   ]);
 
   return {
@@ -314,23 +315,46 @@ export const useGalaxyLayout = ({
 };
 
 // --- STYLING HELPERS ---
+
+const HONEY_PALETTE = [
+  '#ECAE20', // Warm Yellow
+  '#D68C15', // Orange Gold
+  '#B86B18', // Bronze
+  '#965F26', // Light Brown
+  '#C4A645', // Muted Gold
+  '#D99E30', // Honey
+  '#E3B656', // Light Amber
+];
+
 export function getColor(
   type: PointType,
+  rootLetter: string,
+  sortedLetters: string[],
   opacity: number = 0.25
 ): `rgba(${number}, ${number}, ${number}, ${number})` {
-  switch (type) {
-    case 'ANSWER':
-      // Tailwind yellow-400
-      return `rgba(251, 191, 36, ${opacity})`;
-    // "Dark Matter" color - distinct from gold, but looks "important"
-    case 'EXILE':
-      // Tailwind red-400
-      return `rgba(248, 113, 113, ${opacity})`;
-    // Pseudo-word dust - faint and transparent
-    default:
-      // Tailwind gray-400 with low opacity
-      return `rgba(156, 163, 175, ${opacity})`;
+  // Helper to convert hex to rgb
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : { r: 0, g: 0, b: 0 };
+  };
+
+  if (type === 'EXILE') {
+    // Tailwind red-400
+    return `rgba(248, 113, 113, ${opacity})`;
   }
+
+  // Find index of root letter
+  const index = sortedLetters.indexOf(rootLetter.toLowerCase());
+  const colorHex = HONEY_PALETTE[index >= 0 ? index % HONEY_PALETTE.length : 0];
+  const rgb = hexToRgb(colorHex);
+
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
 }
 
 export function getSize(type: PointType) {

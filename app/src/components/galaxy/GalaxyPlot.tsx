@@ -90,7 +90,7 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
 
     // Draw paths first (so dots appear on top)
     letterPaths.forEach(path => {
-      const color = getColor(path.type, 0.25);
+      const color = getColor(path.type, path.rootLetter, sortedLetters, 0.4);
 
       ctx.beginPath();
       ctx.moveTo(path.x1, path.y1);
@@ -102,7 +102,7 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
 
     // Draw non-leaf dots
     nonLeafNodes.forEach(dot => {
-      const color = getColor(dot.type, 0.25);
+      const color = getColor(dot.type, dot.word[0], sortedLetters, 0.4);
       const radius = getSize(dot.type);
 
       ctx.beginPath();
@@ -111,7 +111,7 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
       ctx.fill();
     });
 
-  }, [dimensions, letterPaths, nonLeafNodes]);
+  }, [dimensions, letterPaths, nonLeafNodes, sortedLetters]);
 
   // 6. Generate SVG Elements (Background Rings & Slices)
   const lengths = d3.range(minLen, maxLen + 1);
@@ -174,7 +174,7 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
                     // Calculate coords relative to the SVG center group (0,0)
                     const relX = dot.x - centerX;
                     const relY = dot.y - centerY;
-                    const color = getColor(dot.type, 0.75);
+                    const color = getColor(dot.type, dot.word[0], sortedLetters, 0.85);
                     // Make leaf nodes larger for better hover targets
                     const baseRadius = getSize(dot.type);
                     const interactiveRadius = Math.max(baseRadius * 3, 8); // Minimum 8px for good interaction
