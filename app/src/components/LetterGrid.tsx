@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { HONEY_PALETTE } from "./galaxy/useGalaxyLayout";
 
 interface LetterGridProps {
   centerLetter: string;
@@ -35,7 +36,7 @@ const hexOffsets = Array.from({ length: 6 }, (_, i) => {
   };
 });
 
-const Hexagon = ({ letter, isCenter = false, className = "", style }: { letter: string; isCenter?: boolean; className?: string; style?: React.CSSProperties }) => (
+const Hexagon = ({ letter, fillColor, className = "", style }: { letter: string; fillColor: string; className?: string; style?: React.CSSProperties }) => (
   <div className={`inline-block ${className}`} style={style}>
     <svg
       width={HEX_DIAMETER}
@@ -44,18 +45,18 @@ const Hexagon = ({ letter, isCenter = false, className = "", style }: { letter: 
     >
       <polygon
         points={pointsInSymmetricHexagon}
-        fill={isCenter ? "#3b82f6" : "#ffffff"}
-        stroke="#d1d5db"
-        strokeWidth="1"
+        fill={fillColor}
+        stroke="none"
+        strokeWidth="0"
       />
       <text
         x={HEX_CENTER}
         y={HEX_CENTER + 2}
         textAnchor="middle"
         dominantBaseline="middle"
-        fill={isCenter ? "#ffffff" : "#000000"}
-        fontSize={isCenter ? hexRadius * 0.9 : hexRadius * 0.75}
-        style={{ fontWeight: 'bold', fontFamily: "Arial, sans-serif" }}
+        fill="#ffffff"
+        fontSize={hexRadius * 0.9}
+        style={{ fontWeight: 'bold', fontFamily: "Arial, sans-serif", textShadow: '0px 1px 2px rgba(0,0,0,0.3)' }}
       >
         {letter}
       </text>
@@ -75,6 +76,16 @@ export function LetterGrid({ centerLetter, outerLetters }: LetterGridProps) {
   useEffect(() => {
     setDisplayLetters(outerLetters);
   }, [outerLetters]);
+
+  const sortedLetters = useMemo(() => {
+    return [centerLetter, ...outerLetters].map(l => l.toLowerCase()).sort();
+  }, [centerLetter, outerLetters]);
+
+  const getLetterColor = (letter: string) => {
+    const index = sortedLetters.indexOf(letter.toLowerCase());
+    if (index === -1) return '#d1d5db'; // Fallback
+    return HONEY_PALETTE[index % HONEY_PALETTE.length];
+  };
 
   const animate = useCallback((time: number) => {
     requestRef.current = requestAnimationFrame(animate);
@@ -123,7 +134,7 @@ export function LetterGrid({ centerLetter, outerLetters }: LetterGridProps) {
       {/* Center hexagon */}
       <Hexagon
         letter={centerLetter}
-        isCenter={true}
+        fillColor={getLetterColor(centerLetter)}
         className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
       />
 
@@ -135,6 +146,7 @@ export function LetterGrid({ centerLetter, outerLetters }: LetterGridProps) {
           <Hexagon
             key={index}
             letter={letter}
+            fillColor={getLetterColor(letter)}
             className="absolute transform -translate-x-1/2 -translate-y-1/2"
             style={{
               left: `calc(50% + ${x}px)`,

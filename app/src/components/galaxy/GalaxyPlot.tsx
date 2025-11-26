@@ -21,6 +21,7 @@ interface GalaxyPlotProps {
   className?: string;
   showExiles: boolean;
   lettersToExpose: ExposureConfig;
+  variant?: 'default' | 'badge';
 }
 
 export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
@@ -28,11 +29,18 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
   sortedLetters,
   className = "",
   showExiles,
-  lettersToExpose
+  lettersToExpose,
+  variant = 'default'
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  const isBadge = variant === 'badge';
+  const showLabels = !isBadge;
+  const showRings = !isBadge;
+  const showNonLeafNodes = !isBadge;
+  const enableInteraction = !isBadge;
 
   // 1. Handle responsiveness
   useEffect(() => {
@@ -101,17 +109,19 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
     });
 
     // Draw non-leaf dots
-    nonLeafNodes.forEach(dot => {
-      const color = getColor(dot.type, dot.word[0], sortedLetters, 0.4);
-      const radius = getSize(dot.type);
+    if (showNonLeafNodes) {
+      nonLeafNodes.forEach(dot => {
+        const color = getColor(dot.type, dot.word[0], sortedLetters, 0.4);
+        const radius = getSize(dot.type);
 
-      ctx.beginPath();
-      ctx.arc(dot.x, dot.y, radius, 0, 2 * Math.PI);
-      ctx.fillStyle = color;
-      ctx.fill();
-    });
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, radius, 0, 2 * Math.PI);
+        ctx.fillStyle = color;
+        ctx.fill();
+      });
+    }
 
-  }, [dimensions, letterPaths, nonLeafNodes, sortedLetters]);
+  }, [dimensions, letterPaths, nonLeafNodes, sortedLetters, showNonLeafNodes]);
 
   // 6. Generate SVG Elements (Background Rings & Slices)
   const lengths = d3.range(minLen, maxLen + 1);
@@ -119,7 +129,7 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
   return (
     <div className={`relative w-full h-full ${className}`}>
       {/* Galaxy Plot Container */}
-      <div ref={containerRef} className="w-full h-full min-h-[400px]">
+      <div ref={containerRef} className="w-full h-full">
         {dimensions.width > 0 && (
           <>
             {/* LAYER 1: Canvas for letter paths and non-leaf dots */}
@@ -134,7 +144,7 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
               <g transform={`translate(${centerX}, ${centerY})`}>
 
                 {/* BACKGROUND: Concentric Rings for Lengths (Rho axis) */}
-                {lengths.map(len => {
+                {showRings && lengths.map(len => {
                   const r = radiusScale(len);
                   return (
                     <g key={`ring-${len}`} className="text-gray-800/30 pointer-events-none">
@@ -148,7 +158,7 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
                 })}
 
                 {/* BACKGROUND: Central Letter Labels */}
-                {sectors.map((sector) => {
+                {showLabels && sectors.map((sector) => {
                   // Place labels inside the inner hole
                   const labelR = 35;
                   const labelX = labelR * Math.cos(sector.centerAngle);
@@ -169,53 +179,73 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
                 })}
 
                 {/* INTERACTIVE LEAF NODES: Final letters with tooltips */}
-                <TooltipProvider>
-                  {leafNodes.map((dot) => {
-                    // Calculate coords relative to the SVG center group (0,0)
+                {enableInteraction ? (
+                  <TooltipProvider>
+                    {leafNodes.map((dot) => {
+                      // Calculate coords relative to the SVG center group (0,0)
+                      const relX = dot.x - centerX;
+                      const relY = dot.y - centerY;
+                      const color = getColor(dot.type, dot.word[0], sortedLetters, 0.85);
+                      // Make leaf nodes larger for better hover targets
+                      const baseRadius = getSize(dot.type);
+                      const interactiveRadius = Math.max(baseRadius * 3, 8); // Minimum 8px for good interaction
+
+                      return (
+                        <Tooltip key={dot.wordId}>
+                          <TooltipTrigger asChild>
+                            <circle
+                              cx={relX}
+                              cy={relY}
+                              r={interactiveRadius}
+                              fill={color}
+                              fillOpacity={0.5}
+                              stroke={dot.type === 'ANSWER' ? '#FFFFFF' : 'none'}
+                              strokeWidth={1.5}
+                              strokeOpacity={dot.type === 'ANSWER' ? 0.5 : 0}
+                              className="transition-transform duration-200 origin-center hover:scale-150 cursor-pointer hover:fill-opacity-100 hover:stroke-opacity-100"
+                              style={{
+                                transformBox: 'fill-box',
+                                filter: dot.type === 'ANSWER' ? 'drop-shadow(0 0 4px rgba(251, 191, 36, 0.2))' : 'none'
+                              }}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="text-sm">
+                              <div className="font-bold capitalize">
+                                <AnswerItem
+                                  answer={dot.word}
+                                  lettersToExpose={dot.type === 'ANSWER' ? lettersToExpose : { ...lettersToExpose, showAll: true }}
+                                />
+                                <span className="ml-1 text-xs font-normal text-muted-foreground">({dot.word.length})</span>
+                              </div>
+                              <p className="text-xs text-muted-background">
+                                {dot.type === 'ANSWER' ? 'Accepted Answer' : 'Wikipedia word not in answer list'}
+                              </p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
+                  </TooltipProvider>
+                ) : (
+                  leafNodes.map((dot) => {
                     const relX = dot.x - centerX;
                     const relY = dot.y - centerY;
                     const color = getColor(dot.type, dot.word[0], sortedLetters, 0.85);
-                    // Make leaf nodes larger for better hover targets
                     const baseRadius = getSize(dot.type);
-                    const interactiveRadius = Math.max(baseRadius * 3, 8); // Minimum 8px for good interaction
 
                     return (
-                      <Tooltip key={dot.wordId}>
-                        <TooltipTrigger asChild>
-                          <circle
-                            cx={relX}
-                            cy={relY}
-                            r={interactiveRadius}
-                            fill={color}
-                            fillOpacity={0.5}
-                            stroke={dot.type === 'ANSWER' ? '#FFFFFF' : 'none'}
-                            strokeWidth={1.5}
-                            strokeOpacity={dot.type === 'ANSWER' ? 0.5 : 0}
-                            className="transition-transform duration-200 origin-center hover:scale-150 cursor-pointer hover:fill-opacity-100 hover:stroke-opacity-100"
-                            style={{
-                              transformBox: 'fill-box',
-                              filter: dot.type === 'ANSWER' ? 'drop-shadow(0 0 4px rgba(251, 191, 36, 0.2))' : 'none'
-                            }}
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <div className="text-sm">
-                            <div className="font-bold capitalize">
-                              <AnswerItem
-                                answer={dot.word}
-                                lettersToExpose={dot.type === 'ANSWER' ? lettersToExpose : { ...lettersToExpose, showAll: true }}
-                              />
-                              <span className="ml-1 text-xs font-normal text-muted-foreground">({dot.word.length})</span>
-                            </div>
-                            <p className="text-xs text-muted-background">
-                              {dot.type === 'ANSWER' ? 'Accepted Answer' : 'Wikipedia word not in answer list'}
-                            </p>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
+                      <circle
+                        key={dot.wordId}
+                        cx={relX}
+                        cy={relY}
+                        r={baseRadius}
+                        fill={color}
+                        fillOpacity={0.8}
+                      />
                     );
-                  })}
-                </TooltipProvider>
+                  })
+                )}
               </g>
             </svg>
           </>

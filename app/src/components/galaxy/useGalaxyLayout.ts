@@ -316,7 +316,7 @@ export const useGalaxyLayout = ({
 
 // --- STYLING HELPERS ---
 
-const HONEY_PALETTE = [
+export const HONEY_PALETTE = [
   '#ECAE20', // Warm Yellow
   '#D68C15', // Orange Gold
   '#B86B18', // Bronze

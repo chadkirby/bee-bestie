@@ -9,6 +9,8 @@ import { getBeeScore } from '@/lib/utils.ts';
 import { Badge } from '@/components/ui/badge';
 import { Teletype } from '@/components/Teletype';
 import { PhonotacticScorer } from '@lib/word-freqs/phonotactic';
+import { GalaxyPlot } from '@/components/galaxy/GalaxyPlot';
+import { useGalaxyData } from '@/components/galaxy/useGalaxyData';
 
 interface PuzzleTabProps {
   puzzle: OnePuzzle;
@@ -21,6 +23,27 @@ interface PuzzleTabProps {
   onChangeSortBy: OnChangeSortBy;
   onToggleSortDirection: OnToggleSortDirection;
   scorer: PhonotacticScorer | null;
+}
+
+function GalaxyBadge({ puzzle, scorer }: { puzzle: OnePuzzle; scorer: PhonotacticScorer | null }) {
+  const { points, sortedLetters } = useGalaxyData({
+    centerLetter: puzzle.centerLetter,
+    outerLetters: puzzle.outerLetters,
+    answers: puzzle.answers,
+    scorer,
+  });
+
+  return (
+    <div className="w-[150px] h-[150px] shrink-0">
+      <GalaxyPlot
+        data={points}
+        sortedLetters={sortedLetters}
+        showExiles={false}
+        lettersToExpose={{ showAll: true, startingLetters: 1, endingLetters: 0 }}
+        variant="badge"
+      />
+    </div>
+  );
 }
 
 function ScoringSummary({ totalPoints }: { totalPoints: number }) {
@@ -73,10 +96,10 @@ export function PuzzleTab({
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           {/* Left Column: Puzzle Info */}
           <div className="flex flex-col gap-6 flex-1">
-            <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:justify-start sm:gap-8">
+            <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-between w-full">
               {/* Grid and Score Group */}
               <div className="flex items-center gap-6">
-                <div className="scale-90 sm:scale-100">
+                <div className="scale-100 sm:scale-130">
                   <LetterGrid
                     centerLetter={puzzle.centerLetter.toUpperCase()}
                     outerLetters={puzzle.outerLetters.map((letter) => letter.toUpperCase())}
@@ -88,7 +111,7 @@ export function PuzzleTab({
               </div>
 
               {/* Teletype - Centered on mobile, left-aligned on desktop if space permits */}
-              <div className="w-full max-w-[280px] sm:w-auto sm:max-w-none sm:pt-4">
+              <div className="w-full max-w-[280px] sm:w-auto sm:max-w-none">
                 <Teletype
                   center={puzzle.centerLetter}
                   outer={puzzle.outerLetters.join('')}
@@ -97,6 +120,11 @@ export function PuzzleTab({
                   // needs a fixed with so the play/pause button doesn't move as the text changes
                   className="w-40 mx-auto"
                 />
+              </div>
+
+              {/* Galaxy Badge - Right of Teletype */}
+              <div className="hidden sm:block">
+                <GalaxyBadge puzzle={puzzle} scorer={scorer} />
               </div>
             </div>
           </div>
