@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef, useCallback } from "react";
 
 interface LetterGridProps {
   centerLetter: string;
@@ -54,7 +55,7 @@ const Hexagon = ({ letter, isCenter = false, className = "", style }: { letter: 
         dominantBaseline="middle"
         fill={isCenter ? "#ffffff" : "#000000"}
         fontSize={isCenter ? hexRadius * 0.9 : hexRadius * 0.75}
-        style={{ fontWeight: isCenter ? "bold" : "normal", fontFamily: "Arial, sans-serif" }}
+        style={{ fontWeight: 'bold', fontFamily: "Arial, sans-serif" }}
       >
         {letter}
       </text>
@@ -62,12 +63,62 @@ const Hexagon = ({ letter, isCenter = false, className = "", style }: { letter: 
   </div>
 );
 
+const ANIMATION_FPS = 2; // Adjust this value to change animation speed
+const FRAME_INTERVAL = 1000 / ANIMATION_FPS;
 
 export function LetterGrid({ centerLetter, outerLetters }: LetterGridProps) {
+  const [displayLetters, setDisplayLetters] = useState(outerLetters);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const requestRef = useRef<number | undefined>(undefined);
+  const lastUpdateRef = useRef<number>(0);
+
+  useEffect(() => {
+    setDisplayLetters(outerLetters);
+  }, [outerLetters]);
+
+  const animate = useCallback((time: number) => {
+    requestRef.current = requestAnimationFrame(animate);
+
+    const elapsed = time - lastUpdateRef.current;
+
+    if (elapsed > FRAME_INTERVAL) {
+      lastUpdateRef.current = time - (elapsed % FRAME_INTERVAL);
+
+      setDisplayLetters((prevLetters) => {
+        const newLetters = [...prevLetters];
+        if (newLetters.length >= 2) {
+          const idx1 = Math.floor(Math.random() * newLetters.length);
+          let idx2 = Math.floor(Math.random() * newLetters.length);
+          while (idx1 === idx2) {
+            idx2 = Math.floor(Math.random() * newLetters.length);
+          }
+          [newLetters[idx1], newLetters[idx2]] = [newLetters[idx2], newLetters[idx1]];
+        }
+        return newLetters;
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAnimating) {
+      requestRef.current = requestAnimationFrame(animate);
+    } else {
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
+    }
+    return () => {
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
+    };
+  }, [isAnimating, animate]);
+
   return (
     <div
-      className="relative mx-auto"
+      className="relative mx-auto cursor-pointer"
       style={{ width: `${LAYOUT_DIAMETER}px`, height: `${LAYOUT_DIAMETER}px` }}
+      onClick={() => setIsAnimating(!isAnimating)}
     >
       {/* Center hexagon */}
       <Hexagon
@@ -77,7 +128,7 @@ export function LetterGrid({ centerLetter, outerLetters }: LetterGridProps) {
       />
 
       {/* Outer hexagons in hexagonal pattern */}
-      {outerLetters.slice(0, hexOffsets.length).map((letter, index) => {
+      {displayLetters.slice(0, hexOffsets.length).map((letter, index) => {
         const { x, y } = hexOffsets[index];
 
         return (

@@ -201,7 +201,10 @@ export const GalaxyPlot: React.FC<GalaxyPlotProps> = ({
                         <TooltipContent>
                           <div className="text-sm">
                             <div className="font-bold capitalize">
-                              <AnswerItem answer={dot.word} lettersToExpose={lettersToExpose} />
+                              <AnswerItem
+                                answer={dot.word}
+                                lettersToExpose={dot.type === 'ANSWER' ? lettersToExpose : { ...lettersToExpose, showAll: true }}
+                              />
                               <span className="ml-1 text-xs font-normal text-muted-foreground">({dot.word.length})</span>
                             </div>
                             <p className="text-xs text-muted-background">
