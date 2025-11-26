@@ -73,57 +73,37 @@ export const useGalaxyLayout = ({
   // --- HELPER FUNCTIONS ---
 
   // --- SECTOR CALCULATION ---
-  // Calculate dynamic sector sizes based on word counts
+  // Calculate dynamic sector sizes based on unique 4-letter prefixes of ANSWERS
   const sectors = useMemo(() => {
-    // 1. Calculate counts
-    const counts = new Map<string, number>();
-    sortedLetters.forEach((l) => counts.set(l.toLowerCase(), 0));
+    // 1. Get all unique 4-letter prefixes from VISIBLE data
+    // This allows the layout to adapt when Exiles are shown, preventing collisions.
+    const prefixSet = new Set(data.map((d) => d.word.slice(0, 4)));
 
-    allData.forEach((p) => {
-      const firstChar = p.word[0].toLowerCase();
-      counts.set(firstChar, (counts.get(firstChar) || 0) + 1);
-    });
+    // 2. Calculate Slot Size
+    // Total slots = unique prefixes + 7 gaps (one per letter sector)
+    const totalSlots = prefixSet.size + 7;
+    const slotAngle = (2 * Math.PI) / totalSlots;
 
-    // 2. Smart Ordering: Interleave most and least popular
-    // This separates dense sectors with sparse ones to reduce collisions
-    const lettersByCount = [...sortedLetters].sort((a, b) => {
-      const countA = counts.get(a.toLowerCase()) || 0;
-      const countB = counts.get(b.toLowerCase()) || 0;
-      return countB - countA; // Descending
-    });
+    let currentAngle = -Math.PI / 2; // Start at top (12 o'clock)
 
-    const orderedLetters: string[] = [];
-    let left = 0;
-    let right = lettersByCount.length - 1;
-    while (left <= right) {
-      if (left === right) {
-        orderedLetters.push(lettersByCount[left]);
-      } else {
-        orderedLetters.push(lettersByCount[left]);
-        orderedLetters.push(lettersByCount[right]);
-      }
-      left++;
-      right--;
-    }
+    return sortedLetters.map((letter) => {
+      // Count unique prefixes for this letter
+      const prefixesForLetter = Array.from(prefixSet).filter((prefix) =>
+        prefix.toLowerCase().startsWith(letter.toLowerCase())
+      ).length;
 
-    // 3. Generate Sectors
-    const totalWords = allData.length;
-    const minAngle = (2 * Math.PI) / 14;
-    const totalMinAngle = minAngle * 7;
-    const remainingAngle = 2 * Math.PI - totalMinAngle;
+      // Sector size is proportional to the number of unique prefixes
+      const sectorSize = prefixesForLetter * slotAngle;
 
-    let currentAngle = -Math.PI / 2;
-
-    return orderedLetters.map((letter) => {
-      const count = counts.get(letter.toLowerCase()) || 0;
-      const proportion = totalWords > 0 ? count / totalWords : 0;
-      const allocatedAngle = minAngle + remainingAngle * proportion;
+      // Gap is exactly 1 slot size
+      const gapSize = slotAngle;
 
       const start = currentAngle;
-      const end = currentAngle + allocatedAngle;
-      const center = start + allocatedAngle / 2;
+      const end = start + sectorSize;
+      const center = start + sectorSize / 2;
 
-      currentAngle += allocatedAngle;
+      // Advance currentAngle for the next letter, including the gap
+      currentAngle += sectorSize + gapSize;
 
       return {
         letter,
@@ -144,11 +124,91 @@ export const useGalaxyLayout = ({
   // Generate all letter dots and paths for the dataset
   const { letterDots, letterPaths } = useMemo(() => {
     const nodeMap = new Map<string, LetterDot>();
-    // Deviation factor: determines how much the angle changes based on letter difference
-    // Reduced to keep trails tighter and within sectors
-    // const deviationFactor = 0.05; // This is no longer used
 
-    // 1. Build the Tree (Nodes & Links)
+    // 1. Map Prefixes to Angles
+    // We need to reconstruct the exact angles used in the sector calculation
+    // to ensure nodes align perfectly with the visual sectors.
+    const prefixToAngle = new Map<string, number>();
+
+    // Re-derive the slot logic locally to map specific prefixes to angles
+    const prefixSet = new Set(data.map((d) => d.word.slice(0, 4)));
+    const totalSlots = prefixSet.size + 7;
+    const slotAngle = (2 * Math.PI) / totalSlots;
+
+    let currentAngle = -Math.PI / 2; // Start at top
+
+    sortedLetters.forEach((letter) => {
+      // Get prefixes for this letter, sorted alphabetically
+      const letterPrefixes = Array.from(prefixSet)
+        .filter((p) => p.toLowerCase().startsWith(letter.toLowerCase()))
+        .sort();
+
+      // Add gap
+      currentAngle += slotAngle;
+
+      // Assign angles
+      letterPrefixes.forEach((prefix) => {
+        const angle = currentAngle + slotAngle / 2; // Center of the slot
+        prefixToAngle.set(prefix, angle);
+        currentAngle += slotAngle;
+      });
+    });
+
+    // Helper to get angle for any word
+    const getAngleForNode = (word: string): number => {
+      // Case A: Word is long enough to map directly to a slot (or be an exile near one)
+      if (word.length >= 4) {
+        const prefix = word.slice(0, 4);
+        if (prefixToAngle.has(prefix)) {
+          return prefixToAngle.get(prefix)!;
+        }
+        // Exile case: Prefix not in answer set.
+        // Find the nearest prefix starting with the same letter.
+        // If none (rare), default to sector center.
+        const firstChar = word[0];
+        const sector = sectors.find((s) => s.letter === firstChar);
+        if (!sector) return 0; // Should not happen
+
+        // Find all prefixes for this letter
+        const letterPrefixes = Array.from(prefixToAngle.keys())
+          .filter((k) => k.startsWith(firstChar))
+          .sort();
+
+        if (letterPrefixes.length === 0) return sector.centerAngle;
+
+        // Find insertion point
+        for (let i = 0; i < letterPrefixes.length; i++) {
+          if (word < letterPrefixes[i]) {
+            if (i === 0) return prefixToAngle.get(letterPrefixes[0])!;
+            // Interpolate or pick closest?
+            // Let's just pick the closest to keep it simple and aligned.
+            return prefixToAngle.get(letterPrefixes[i])!;
+          }
+        }
+        return prefixToAngle.get(letterPrefixes[letterPrefixes.length - 1])!;
+      }
+
+      // Case B: Word is short (L1, L2, L3). Average of descendants.
+      // Find all prefixes that start with this word
+      const descendants = Array.from(prefixToAngle.keys()).filter((p) =>
+        p.startsWith(word)
+      );
+
+      if (descendants.length === 0) {
+        // Should not happen if it's a parent of an answer.
+        // If it's a parent of only exiles, fallback to sector center.
+        const sector = sectors.find((s) => s.letter === word[0]);
+        return sector ? sector.centerAngle : 0;
+      }
+
+      const sum = descendants.reduce(
+        (acc, p) => acc + (prefixToAngle.get(p) || 0),
+        0
+      );
+      return sum / descendants.length;
+    };
+
+    // 2. Build the Tree (Nodes & Links)
     data.forEach((point) => {
       let prefix = '';
       let parentNode: LetterDot | undefined;
@@ -171,18 +231,21 @@ export const useGalaxyLayout = ({
             rho = radiusScale(Math.min(letterPosition, maxLen));
           }
 
+          // Calculate angle immediately
+          const angle = getAngleForNode(prefix);
+
           node = {
-            x: 0, // Will be calculated later
-            y: 0,
+            x: centerX + rho * Math.cos(angle),
+            y: centerY + rho * Math.sin(angle),
             letter: char,
             word: prefix,
             wordId: '',
             letterIndex: i,
-            type: point.type, // Default, might be upgraded to ANSWER
+            type: point.type,
             isLeaf: false,
             score: 0,
             rho,
-            angle: 0, // Will be calculated later
+            angle,
             parent: parentNode,
             children: [],
           };
@@ -200,16 +263,7 @@ export const useGalaxyLayout = ({
           node.word = point.word;
           node.wordId = point.id;
           node.score = point.score;
-          // Upgrade type to ANSWER if ANY word sharing this node is an answer
-          // (Though usually leaf nodes are unique to a word, unless duplicates exist)
           if (point.type === 'ANSWER') node.type = 'ANSWER';
-        } else {
-          // For intermediate nodes, if they are part of an ANSWER path,
-          // we might want to color them? For now, keep as is.
-          if (point.type === 'ANSWER' && node.type !== 'ANSWER') {
-            // Optional: Upgrade intermediate nodes to ANSWER type if they lead to an answer?
-            // node.type = 'ANSWER';
-          }
         }
 
         parentNode = node;
@@ -218,97 +272,19 @@ export const useGalaxyLayout = ({
 
     const allDots = Array.from(nodeMap.values());
 
-    // 2. Layout Level by Level
-    // Group by depth (letterIndex)
-    const maxDepth = d3.max(allDots, (d) => d.letterIndex) ?? 0;
-
-    for (let depth = 0; depth <= maxDepth; depth++) {
-      const nodesAtDepth = allDots.filter((d) => d.letterIndex === depth);
-
-      // A. Calculate Ideal Angles (Inherit from parent + tiny jitter)
-      // Group by parent to handle siblings
-      const nodesByParent = d3.group(nodesAtDepth, (d) => d.parent);
-
-      nodesByParent.forEach((children, parent) => {
-        if (!parent) {
-          // Roots: Fixed at slice center
-          children.forEach((node) => {
-            // Use the dynamic sector center for the first letter
-            node.angle = getSectorCenter(node.letter);
-          });
-        } else {
-          // Children: Start at parent's FINAL angle
-          // Sort siblings to ensure deterministic spread direction
-          children.sort((a, b) => a.letter.localeCompare(b.letter));
-
-          const count = children.length;
-          // Very small jitter to break symmetry and allow collision algo to do the work
-          const jitter = 0.01;
-
-          children.forEach((child, i) => {
-            // Center the jitter around the parent's angle
-            const offset = (i - (count - 1) / 2) * jitter;
-            child.angle = parent.angle + offset;
-          });
-        }
-      });
-
-      // B. Resolve Collisions for THIS depth
-      // Sort by angle to find neighbors
-      nodesAtDepth.sort((a, b) => a.angle - b.angle);
-
-      const rho = nodesAtDepth[0]?.rho || 100;
-      const minArc = 14; // Minimum distance between dots (pixels)
-      const minAngle = minArc / rho;
-
-      // Iterative relaxation
-      for (let iter = 0; iter < 10; iter++) {
-        let moved = false;
-        for (let i = 0; i < nodesAtDepth.length - 1; i++) {
-          const a = nodesAtDepth[i];
-          const b = nodesAtDepth[i + 1];
-
-          let diff = b.angle - a.angle;
-
-          // Check for wrap-around collision (important for full circles)
-          // But here we mostly care about local collisions.
-          // If we want to support 360 wrap, we should check last vs first too.
-          // For now, linear check is usually sufficient given the sector layout.
-
-          if (diff < minAngle) {
-            const overlap = minAngle - diff;
-            const move = overlap / 2;
-
-            // Push apart
-            a.angle -= move;
-            b.angle += move;
-            moved = true;
-          }
-        }
-        if (!moved) break;
-      }
-
-      // Update coordinates
-      nodesAtDepth.forEach((node) => {
-        node.x = centerX + node.rho * Math.cos(node.angle);
-        node.y = centerY + node.rho * Math.sin(node.angle);
-      });
-    }
-
     // 3. Generate Paths
-    const allPaths: LetterPath[] = [];
-    allDots.forEach((node) => {
-      if (node.parent) {
-        allPaths.push({
-          x1: node.parent.x,
-          y1: node.parent.y,
-          x2: node.x,
-          y2: node.y,
-          wordId: node.wordId, // Use the node's wordId (might be empty if intermediate)
-          type: node.type,
-        });
-      }
-    });
+    const allPaths: LetterPath[] = allDots
+      .filter(
+        (node): node is LetterDot & { parent: LetterDot } => !!node.parent
+      )
+      .map((node) => ({
+        x1: node.parent.x,
+        y1: node.parent.y,
+        x2: node.x,
+        y2: node.y,
+        wordId: node.wordId,
+        type: node.type,
+      }));
 
     return { letterDots: allDots, letterPaths: allPaths };
   }, [
@@ -321,6 +297,7 @@ export const useGalaxyLayout = ({
     innerHoleRadius,
     sectors,
     sortedLetters,
+    allData, // Added dependency
   ]);
 
   return {
